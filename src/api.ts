@@ -38,3 +38,34 @@ export const fetchMessages = async (
     timestamp_lt,
   });
 };
+
+export const fetchPreviousSettingsUpdate = async (
+  space: string,
+  currentTimestamp: number
+): Promise<SnapshotResponse> => {
+  const PREVIOUS_SETTINGS_QUERY = gql`
+    query GetPreviousSettings($space: String!, $timestamp_lt: Int) {
+      messages(
+        first: 1
+        where: {
+          space: $space
+          type: "settings"
+          timestamp_lt: $timestamp_lt
+        }
+        orderBy: "timestamp"
+        orderDirection: desc
+      ) {
+        id
+        mci
+        type
+        ipfs
+        timestamp
+      }
+    }
+  `;
+  
+  return client.request(PREVIOUS_SETTINGS_QUERY, {
+    space,
+    timestamp_lt: currentTimestamp,
+  });
+};

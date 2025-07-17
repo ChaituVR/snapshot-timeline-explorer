@@ -13,6 +13,7 @@ import {
 import type { SnapshotMessage } from '../types';
 import { Modal } from './Modal';
 import { IPFSContent } from './IPFSContent';
+import { SettingsDiff } from './SettingsDiff';
 
 const TYPE_COLORS = {
   proposal: 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-300 text-blue-800',
@@ -43,6 +44,7 @@ interface TimelineProps {
 
 export const Timeline: React.FC<TimelineProps> = ({ messages, loading, space }) => {
   const [selectedIPFS, setSelectedIPFS] = useState<string | null>(null);
+  const [selectedSettingsDiff, setSelectedSettingsDiff] = useState<SnapshotMessage | null>(null);
 
   const getProposalUrl = (message: SnapshotMessage) => {
     if (message.type === 'proposal') {
@@ -136,6 +138,15 @@ export const Timeline: React.FC<TimelineProps> = ({ messages, loading, space }) 
                     <Eye size={14} />
                     View Content
                   </button>
+                  {message.type === 'settings' && (
+                    <button
+                      onClick={() => setSelectedSettingsDiff(message)}
+                      className="inline-flex items-center gap-2 px-3 py-2 bg-amber-100 text-amber-700 hover:bg-amber-200 rounded-lg transition-colors font-medium"
+                    >
+                      <FileEdit size={14} />
+                      View Difference
+                    </button>
+                  )}
                   <div className="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg text-gray-600">
                     <Hash size={14} />
                     MCI: {message.mci}
@@ -158,6 +169,12 @@ export const Timeline: React.FC<TimelineProps> = ({ messages, loading, space }) 
 
       <Modal isOpen={!!selectedIPFS} onClose={() => setSelectedIPFS(null)}>
         {selectedIPFS && <IPFSContent ipfsHash={selectedIPFS} />}
+      </Modal>
+      
+      <Modal isOpen={!!selectedSettingsDiff} onClose={() => setSelectedSettingsDiff(null)}>
+        {selectedSettingsDiff && (
+          <SettingsDiff currentMessage={selectedSettingsDiff} space={space} />
+        )}
       </Modal>
     </div>
   );
