@@ -106,19 +106,7 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
 
   const renderDiffValue = (key: string, value: any) => {
     if (Array.isArray(value)) {
-      if (value[0] !== undefined && value[1] === undefined) {
-        // Deleted
-        return (
-          <div className="mb-4">
-            <div className="font-medium text-red-700 mb-2">🗑️ {key} (Removed)</div>
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <pre className="text-sm text-red-800 whitespace-pre-wrap break-words">
-                {JSON.stringify(value[0], null, 2)}
-              </pre>
-            </div>
-          </div>
-        );
-      } else if (value[0] === undefined && value[1] !== undefined) {
+      if (value[0] === undefined && value[1] !== undefined) {
         // Added
         return (
           <div className="mb-4">
@@ -126,6 +114,18 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
             <div className="bg-green-50 border border-green-200 rounded-lg p-3">
               <pre className="text-sm text-green-800 whitespace-pre-wrap break-words">
                 {JSON.stringify(value[1], null, 2)}
+              </pre>
+            </div>
+          </div>
+        );
+      } else if (value[0] !== undefined && value[1] === undefined) {
+        // Removed
+        return (
+          <div className="mb-4">
+            <div className="font-medium text-red-700 mb-2">🗑️ {key} (Removed)</div>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <pre className="text-sm text-red-800 whitespace-pre-wrap break-words">
+                {JSON.stringify(value[0], null, 2)}
               </pre>
             </div>
           </div>
