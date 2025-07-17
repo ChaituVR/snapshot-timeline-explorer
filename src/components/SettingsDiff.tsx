@@ -106,7 +106,7 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
 
   const renderDiffValue = (key: string, value: any) => {
     if (Array.isArray(value)) {
-      if (value.0] !== undefined && value[1] === undefined) {
+      if (value[0] !== undefined && value[1] === undefined) {
         // Deleted
         return (
           <div className="mb-4">
