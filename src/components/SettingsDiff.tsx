@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, GitCompare, ArrowRight } from 'lucide-react';
+import { AlertCircle, GitCompare, ArrowRight, Columns, List } from 'lucide-react';
 import * as jsondiffpatch from 'jsondiffpatch';
 import { fetchPreviousSettingsUpdate } from '../api';
 import type { SnapshotMessage } from '../types';
@@ -15,6 +15,7 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [diff, setDiff] = useState<any>(null);
+  const [viewMode, setViewMode] = useState<'changes' | 'sidebyside'>('changes');
 
   useEffect(() => {
     const fetchSettingsData = async () => {
@@ -186,55 +187,112 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
       <div className="flex items-center gap-2 mb-6 pb-4 border-b border-gray-200">
         <GitCompare className="w-5 h-5 text-gray-600" />
         <h3 className="text-lg font-semibold text-gray-800">Settings Comparison</h3>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={() => setViewMode('changes')}
+              className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ${
+                viewMode === 'changes'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <List size={14} />
+              Changes Only
+            </button>
+            <button
+              onClick={() => setViewMode('sidebyside')}
+              className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors flex items-center gap-1 ${
+                viewMode === 'sidebyside'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <Columns size={14} />
+              Side by Side
+            </button>
+          </div>
       </div>
 
-      {diff && Object.keys(diff).length > 0 ? (
-        <div className="space-y-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <h4 className="font-semibold text-blue-800 mb-2">Changes Detected</h4>
-            <p className="text-blue-700 text-sm">
-              The following settings were modified between the previous and current update:
-            </p>
+        {viewMode === 'sidebyside' ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-3 h-3 bg-red-400 rounded-full"></div>
+                <span className="font-medium text-gray-700">Previous Settings</span>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <pre className="text-sm overflow-auto max-h-[60vh] whitespace-pre-wrap break-words">
+                  {JSON.stringify(previousSettings, null, 2)}
+                </pre>
+              </div>
+            </div>
+            
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+                <span className="font-medium text-gray-700">Current Settings</span>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <pre className="text-sm overflow-auto max-h-[60vh] whitespace-pre-wrap break-words">
+                  {JSON.stringify(currentSettings, null, 2)}
+                </pre>
+              </div>
+            </div>
           </div>
-          
-          {renderNestedDiff(diff)}
-        </div>
-      ) : (
-        <div className="text-center py-8">
-          <div className="bg-gray-50 rounded-lg p-6">
-            <h4 className="text-lg font-semibold text-gray-700 mb-2">No Changes Detected</h4>
-            <p className="text-gray-500">The settings appear to be identical to the previous update.</p>
-          </div>
-        </div>
-      )}
+        ) : (
+          <>
+            {diff && Object.keys(diff).length > 0 ? (
+              <div className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                  <h4 className="font-semibold text-blue-800 mb-2">Changes Detected</h4>
+                  <p className="text-blue-700 text-sm">
+                    The following settings were modified between the previous and current update:
+                  </p>
+                </div>
+                
+                {renderNestedDiff(diff)}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <div className="bg-gray-50 rounded-lg p-6">
+                  <h4 className="text-lg font-semibold text-gray-700 mb-2">No Changes Detected</h4>
+                  <p className="text-gray-500">The settings appear to be identical to the previous update.</p>
+                </div>
+              </div>
+            )}
+          </>
+        )}
 
-      <div className="mt-8 pt-6 border-t border-gray-200">
-        <h4 className="text-md font-semibold text-gray-700 mb-4">Raw Settings Data</h4>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-3 h-3 bg-red-400 rounded-full"></div>
-              <span className="font-medium text-gray-700">Previous Settings</span>
-            </div>
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-              <pre className="text-sm overflow-auto max-h-[40vh] whitespace-pre-wrap break-words">
-                {JSON.stringify(previousSettings, null, 2)}
-              </pre>
+        {viewMode === 'changes' && (
+          <div className="mt-8 pt-6 border-t border-gray-200">
+            <h4 className="text-md font-semibold text-gray-700 mb-4">Raw Settings Data</h4>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-3 h-3 bg-red-400 rounded-full"></div>
+                  <span className="font-medium text-gray-700">Previous Settings</span>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                  <pre className="text-sm overflow-auto max-h-[40vh] whitespace-pre-wrap break-words">
+                    {JSON.stringify(previousSettings, null, 2)}
+                  </pre>
+                </div>
+              </div>
+              
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+                  <span className="font-medium text-gray-700">Current Settings</span>
+                </div>
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                  <pre className="text-sm overflow-auto max-h-[40vh] whitespace-pre-wrap break-words">
+                    {JSON.stringify(currentSettings, null, 2)}
+                  </pre>
+                </div>
+              </div>
             </div>
           </div>
-          
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-              <span className="font-medium text-gray-700">Current Settings</span>
-            </div>
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-              <pre className="text-sm overflow-auto max-h-[40vh] whitespace-pre-wrap break-words">
-                {JSON.stringify(currentSettings, null, 2)}
-              </pre>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
