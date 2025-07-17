@@ -48,7 +48,7 @@ export const Timeline: React.FC<TimelineProps> = ({ messages, loading, space }) 
 
   const getProposalUrl = (message: SnapshotMessage) => {
     if (message.type === 'proposal') {
-      return `https://snapshot.box/#/s:${space}/proposal/${message.id}`;
+      return `https://snapshot.box/#/s:${space.toLowerCase()}/proposal/${message.id}`;
     }
     return null;
   };
