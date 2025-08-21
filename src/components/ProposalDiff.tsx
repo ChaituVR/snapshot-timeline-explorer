@@ -217,7 +217,6 @@ export const ProposalDiff: React.FC<ProposalDiffProps> = ({ currentMessage, spac
             variant="outline"
           />
         </div>
-        )}
       </div>
 
       {diff && Object.keys(diff).length > 0 ? (
