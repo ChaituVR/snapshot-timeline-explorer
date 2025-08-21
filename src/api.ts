@@ -69,3 +69,34 @@ export const fetchPreviousSettingsUpdate = async (
     timestamp_lt: currentTimestamp,
   });
 };
+
+export const fetchProposalById = async (
+  space: string,
+  proposalId: string
+): Promise<SnapshotResponse> => {
+  const PROPOSAL_QUERY = gql`
+    query GetProposal($space: String!, $proposalId: String!) {
+      messages(
+        first: 10
+        where: {
+          space: $space
+          id: $proposalId
+          type_in: ["proposal", "update-proposal"]
+        }
+        orderBy: "timestamp"
+        orderDirection: asc
+      ) {
+        id
+        mci
+        type
+        ipfs
+        timestamp
+      }
+    }
+  `;
+  
+  return client.request(PROPOSAL_QUERY, {
+    space,
+    proposalId,
+  });
+};
