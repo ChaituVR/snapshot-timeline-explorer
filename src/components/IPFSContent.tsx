@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, AlertCircle } from 'lucide-react';
+import { CopyButton } from './CopyButton';
 
 interface IPFSContentProps {
   ipfsHash: string;
@@ -62,9 +63,19 @@ export const IPFSContent: React.FC<IPFSContentProps> = ({ ipfsHash }) => {
         <code className="text-sm bg-gray-100 px-2 py-1 rounded text-gray-600">
           {ipfsHash.slice(0, 8)}...{ipfsHash.slice(-8)}
         </code>
+        <div className="ml-auto">
+          <CopyButton text={ipfsHash} variant="outline">
+            Copy Hash
+          </CopyButton>
+        </div>
       </div>
       
       <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+        <div className="flex justify-end mb-2">
+          <CopyButton text={JSON.stringify(content, null, 2)} variant="outline">
+            Copy JSON
+          </CopyButton>
+        </div>
         <pre className="text-sm overflow-auto max-h-[60vh] whitespace-pre-wrap break-words">
           {JSON.stringify(content, null, 2)}
         </pre>

@@ -29,8 +29,8 @@ function App() {
       const response = await fetchMessages(
         space,
         10,
-        0,
-        isInitial ? timestamp : lastTimestamp.current
+        isInitial ? 0 : messages.length,
+        isInitial && timestamp ? timestamp : lastTimestamp.current
       );
       
       const newMessages = response.messages;
@@ -79,12 +79,10 @@ function App() {
   const handleDateSelect = (date: Date | undefined) => {
     setSelectedDate(date);
     setShowCalendar(false);
-    if (date) {
-      setMessages([]);
-      setHasMore(true);
-      lastTimestamp.current = undefined;
-      loadMessages(true);
-    }
+    setMessages([]);
+    setHasMore(true);
+    lastTimestamp.current = undefined;
+    loadMessages(true);
   };
 
   const clearDate = () => {
