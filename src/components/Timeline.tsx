@@ -15,6 +15,7 @@ import { Modal } from './Modal';
 import { IPFSContent } from './IPFSContent';
 import { SettingsDiff } from './SettingsDiff';
 import { ProposalDiff } from './ProposalDiff';
+import { CopyButton } from './CopyButton';
 
 const TYPE_COLORS = {
   proposal: 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-300 text-blue-800',
@@ -162,6 +163,16 @@ export const Timeline: React.FC<TimelineProps> = ({ messages, loading, space }) 
                     <Hash size={14} />
                     MCI: {message.mci}
                   </div>
+                  <CopyButton 
+                    text={message.ipfs} 
+                    variant="minimal" 
+                    className="text-gray-500 hover:text-gray-700"
+                  />
+                  <CopyButton 
+                    text={message.id} 
+                    variant="minimal" 
+                    className="text-gray-500 hover:text-gray-700"
+                  />
                 </div>
               </div>
             </div>

@@ -3,6 +3,7 @@ import { AlertCircle, GitCompare, ArrowRight, Columns, List } from 'lucide-react
 import * as jsondiffpatch from 'jsondiffpatch';
 import { fetchPreviousSettingsUpdate } from '../api';
 import type { SnapshotMessage } from '../types';
+import { CopyButton } from './CopyButton';
 
 interface SettingsDiffProps {
   currentMessage: SnapshotMessage;
@@ -212,6 +213,12 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
       <div className="flex items-center gap-2 mb-6 pb-4 border-b border-gray-200">
         <GitCompare className="w-5 h-5 text-gray-600" />
         <h3 className="text-lg font-semibold text-gray-800">Settings Comparison</h3>
+        <div className="ml-auto">
+          <CopyButton 
+            text={diff ? JSON.stringify(diff, null, 2) : 'No changes detected'} 
+            variant="outline"
+          />
+        </div>
       </div>
 
       {diff && Object.keys(diff).length > 0 ? (
@@ -221,6 +228,12 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
             <p className="text-blue-700 text-sm">
               The following settings were modified between the previous and current update:
             </p>
+            <div className="mt-3">
+              <CopyButton 
+                text={JSON.stringify(diff, null, 2)} 
+                variant="outline"
+              />
+            </div>
           </div>
           
           {renderNestedDiff(diff)}
@@ -241,8 +254,18 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
             <div className="flex items-center gap-2 mb-3">
               <div className="w-3 h-3 bg-red-400 rounded-full"></div>
               <span className="font-medium text-gray-700">Previous Settings</span>
+              <CopyButton 
+                text={JSON.stringify(previousSettings, null, 2)} 
+                variant="minimal" 
+              />
             </div>
             <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+              <div className="flex justify-end mb-2">
+                <CopyButton 
+                  text={JSON.stringify(previousSettings, null, 2)} 
+                  variant="minimal" 
+                />
+              </div>
               <pre className="text-sm overflow-auto max-h-[40vh] whitespace-pre-wrap break-words">
                 {JSON.stringify(previousSettings, null, 2)}
               </pre>
@@ -253,8 +276,18 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
             <div className="flex items-center gap-2 mb-3">
               <div className="w-3 h-3 bg-green-400 rounded-full"></div>
               <span className="font-medium text-gray-700">Current Settings</span>
+              <CopyButton 
+                text={JSON.stringify(currentSettings, null, 2)} 
+                variant="minimal" 
+              />
             </div>
             <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+              <div className="flex justify-end mb-2">
+                <CopyButton 
+                  text={JSON.stringify(currentSettings, null, 2)} 
+                  variant="minimal" 
+                />
+              </div>
               <pre className="text-sm overflow-auto max-h-[40vh] whitespace-pre-wrap break-words">
                 {JSON.stringify(currentSettings, null, 2)}
               </pre>
