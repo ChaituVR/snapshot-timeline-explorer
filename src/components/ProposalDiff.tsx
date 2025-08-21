@@ -208,14 +208,17 @@ export const ProposalDiff: React.FC<ProposalDiffProps> = ({ currentMessage, spac
             <code className="text-sm bg-gray-100 px-2 py-1 rounded text-gray-600">
               {proposalId.slice(0, 8)}...{proposalId.slice(-8)}
             </code>
-            <CopyButton text={proposalId} variant="minimal" />
+            <CopyButton text={proposalId} variant="minimal">
+              Copy ID
+            </CopyButton>
           </div>
         )}
         <div className="ml-auto">
           <CopyButton 
             text={diff ? JSON.stringify(diff, null, 2) : 'No changes detected'} 
-            variant="outline"
-          />
+            variant="outline">
+            Copy Diff
+          </CopyButton>
         </div>
       </div>
 
@@ -229,8 +232,9 @@ export const ProposalDiff: React.FC<ProposalDiffProps> = ({ currentMessage, spac
             <div className="mt-3">
               <CopyButton 
                 text={JSON.stringify(diff, null, 2)} 
-                variant="outline"
-              />
+                variant="outline">
+                Copy Changes
+              </CopyButton>
             </div>
           </div>
           
@@ -252,17 +256,14 @@ export const ProposalDiff: React.FC<ProposalDiffProps> = ({ currentMessage, spac
             <div className="flex items-center gap-2 mb-3">
               <div className="w-3 h-3 bg-red-400 rounded-full"></div>
               <span className="font-medium text-gray-700">Original Proposal</span>
-              <CopyButton 
-                text={JSON.stringify(originalProposal, null, 2)} 
-                variant="minimal" 
-              />
             </div>
             <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
               <div className="flex justify-end mb-2">
                 <CopyButton 
                   text={JSON.stringify(originalProposal, null, 2)} 
-                  variant="minimal" 
-                />
+                  variant="outline">
+                  Copy Original
+                </CopyButton>
               </div>
               <pre className="text-sm overflow-auto max-h-[40vh] whitespace-pre-wrap break-words">
                 {JSON.stringify(originalProposal, null, 2)}
@@ -274,17 +275,14 @@ export const ProposalDiff: React.FC<ProposalDiffProps> = ({ currentMessage, spac
             <div className="flex items-center gap-2 mb-3">
               <div className="w-3 h-3 bg-green-400 rounded-full"></div>
               <span className="font-medium text-gray-700">Updated Proposal</span>
-              <CopyButton 
-                text={JSON.stringify(currentProposal, null, 2)} 
-                variant="minimal" 
-              />
             </div>
             <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
               <div className="flex justify-end mb-2">
                 <CopyButton 
                   text={JSON.stringify(currentProposal, null, 2)} 
-                  variant="minimal" 
-                />
+                  variant="outline">
+                  Copy Updated
+                </CopyButton>
               </div>
               <pre className="text-sm overflow-auto max-h-[40vh] whitespace-pre-wrap break-words">
                 {JSON.stringify(currentProposal, null, 2)}

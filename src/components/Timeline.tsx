@@ -163,16 +163,20 @@ export const Timeline: React.FC<TimelineProps> = ({ messages, loading, space }) 
                     <Hash size={14} />
                     MCI: {message.mci}
                   </div>
-                  <CopyButton 
-                    text={message.ipfs} 
-                    variant="minimal" 
-                    className="text-gray-500 hover:text-gray-700"
-                  />
-                  <CopyButton 
-                    text={message.id} 
-                    variant="minimal" 
-                    className="text-gray-500 hover:text-gray-700"
-                  />
+                  <div className="flex items-center gap-2">
+                    <CopyButton 
+                      text={message.ipfs} 
+                      variant="minimal" 
+                      className="text-gray-500 hover:text-gray-700">
+                      Copy IPFS
+                    </CopyButton>
+                    <CopyButton 
+                      text={message.id} 
+                      variant="minimal" 
+                      className="text-gray-500 hover:text-gray-700">
+                      Copy ID
+                    </CopyButton>
+                  </div>
                 </div>
               </div>
             </div>

@@ -3,6 +3,7 @@ import { Copy, Check } from 'lucide-react';
 
 interface CopyButtonProps {
   text: string;
+  children?: React.ReactNode;
   className?: string;
   size?: number;
   variant?: 'default' | 'minimal' | 'outline';
@@ -10,6 +11,7 @@ interface CopyButtonProps {
 
 export const CopyButton: React.FC<CopyButtonProps> = ({ 
   text, 
+  children,
   className = '', 
   size = 16,
   variant = 'default'
@@ -43,12 +45,16 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
       {copied ? (
         <>
           <Check size={size} className="text-green-600" />
-          {variant !== 'minimal' && <span className="text-green-600">Copied!</span>}
+          {(variant !== 'minimal' || children) && (
+            <span className="text-green-600">{children || 'Copied!'}</span>
+          )}
         </>
       ) : (
         <>
           <Copy size={size} />
-          {variant !== 'minimal' && <span>Copy</span>}
+          {(variant !== 'minimal' || children) && (
+            <span>{children || 'Copy'}</span>
+          )}
         </>
       )}
     </button>

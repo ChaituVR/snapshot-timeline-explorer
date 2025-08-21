@@ -216,8 +216,9 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
         <div className="ml-auto">
           <CopyButton 
             text={diff ? JSON.stringify(diff, null, 2) : 'No changes detected'} 
-            variant="outline"
-          />
+            variant="outline">
+            Copy Diff
+          </CopyButton>
         </div>
       </div>
 
@@ -231,8 +232,9 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
             <div className="mt-3">
               <CopyButton 
                 text={JSON.stringify(diff, null, 2)} 
-                variant="outline"
-              />
+                variant="outline">
+                Copy Changes
+              </CopyButton>
             </div>
           </div>
           
@@ -254,17 +256,14 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
             <div className="flex items-center gap-2 mb-3">
               <div className="w-3 h-3 bg-red-400 rounded-full"></div>
               <span className="font-medium text-gray-700">Previous Settings</span>
-              <CopyButton 
-                text={JSON.stringify(previousSettings, null, 2)} 
-                variant="minimal" 
-              />
             </div>
             <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
               <div className="flex justify-end mb-2">
                 <CopyButton 
                   text={JSON.stringify(previousSettings, null, 2)} 
-                  variant="minimal" 
-                />
+                  variant="outline">
+                  Copy Previous
+                </CopyButton>
               </div>
               <pre className="text-sm overflow-auto max-h-[40vh] whitespace-pre-wrap break-words">
                 {JSON.stringify(previousSettings, null, 2)}
@@ -276,17 +275,14 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
             <div className="flex items-center gap-2 mb-3">
               <div className="w-3 h-3 bg-green-400 rounded-full"></div>
               <span className="font-medium text-gray-700">Current Settings</span>
-              <CopyButton 
-                text={JSON.stringify(currentSettings, null, 2)} 
-                variant="minimal" 
-              />
             </div>
             <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
               <div className="flex justify-end mb-2">
                 <CopyButton 
                   text={JSON.stringify(currentSettings, null, 2)} 
-                  variant="minimal" 
-                />
+                  variant="outline">
+                  Copy Current
+                </CopyButton>
               </div>
               <pre className="text-sm overflow-auto max-h-[40vh] whitespace-pre-wrap break-words">
                 {JSON.stringify(currentSettings, null, 2)}
