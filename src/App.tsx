@@ -185,7 +185,6 @@ function App() {
                       onSelect={handleDateSelect}
                       className="p-3 text-white [&_.rdp-day]:text-white [&_.rdp-day_button:hover]:bg-gray-700 [&_.rdp-day_button.rdp-day_selected]:bg-gradient-to-r [&_.rdp-day_button.rdp-day_selected]:from-cyan-400 [&_.rdp-day_button.rdp-day_selected]:to-blue-500"
                     />
-                  </div>
                 )}
               </div>
               
