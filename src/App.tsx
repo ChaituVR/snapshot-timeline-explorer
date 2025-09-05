@@ -128,8 +128,12 @@ function App() {
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="mb-12">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-2xl flex items-center justify-center shadow-2xl">
-              <Search className="w-8 h-8 text-white" />
+            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-2xl flex items-center justify-center shadow-2xl p-2">
+              <img 
+                src="https://raw.githubusercontent.com/snapshot-labs/brand/refs/heads/master/icon/icon.png" 
+                alt="Snapshot Logo" 
+                className="w-full h-full object-contain"
+              />
             </div>
             <h1 className="text-4xl font-bold text-gray-900 mb-3">
               <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
@@ -203,7 +207,7 @@ function App() {
                   )}
                 </button>
                 {showEventFilter && (
-                  <div className="absolute right-0 mt-2 bg-gray-800 rounded-xl shadow-2xl z-10 border border-gray-700 p-4 min-w-[280px]">
+                  <div className="absolute right-0 mt-2 bg-gray-800 rounded-xl shadow-2xl z-30 border border-gray-700 p-4 min-w-[280px]">
                     <h4 className="text-white font-semibold mb-3">Event Types</h4>
                     <div className="space-y-2">
                       {EVENT_TYPES.map((eventType) => (
