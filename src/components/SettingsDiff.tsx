@@ -68,8 +68,8 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-3 border-blue-200 border-t-blue-600 mb-4"></div>
-        <p className="text-gray-600">Loading settings comparison...</p>
+        <div className="animate-spin rounded-full h-12 w-12 border-3 border-gray-600 border-t-cyan-400 mb-4"></div>
+        <p className="text-gray-300">Loading settings comparison...</p>
       </div>
     );
   }
@@ -77,10 +77,10 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+        <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
         <div className="text-center">
-          <h3 className="text-lg font-semibold text-red-700 mb-2">Failed to Load Comparison</h3>
-          <p className="text-red-600">{error}</p>
+          <h3 className="text-lg font-semibold text-red-400 mb-2">Failed to Load Comparison</h3>
+          <p className="text-red-300">{error}</p>
         </div>
       </div>
     );
@@ -89,14 +89,14 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
   if (!previousSettings) {
     return (
       <div className="text-center py-8">
-        <GitCompare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-700 mb-2">No Previous Settings Found</h3>
-        <p className="text-gray-500">This appears to be the first settings update for this space.</p>
+        <GitCompare className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-gray-300 mb-2">No Previous Settings Found</h3>
+        <p className="text-gray-400">This appears to be the first settings update for this space.</p>
         
         <div className="mt-6">
-          <h4 className="text-md font-semibold text-gray-700 mb-3">Current Settings:</h4>
-          <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-            <pre className="text-sm overflow-auto max-h-[40vh] whitespace-pre-wrap break-words">
+          <h4 className="text-md font-semibold text-gray-300 mb-3">Current Settings:</h4>
+          <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-700">
+            <pre className="text-sm overflow-auto max-h-[40vh] whitespace-pre-wrap break-words text-gray-300">
               {JSON.stringify(currentSettings, null, 2)}
             </pre>
           </div>
@@ -210,9 +210,9 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
 
   return (
     <div className="max-w-none">
-      <div className="flex items-center gap-2 mb-6 pb-4 border-b border-gray-200">
-        <GitCompare className="w-5 h-5 text-gray-600" />
-        <h3 className="text-lg font-semibold text-gray-800">Settings Comparison</h3>
+      <div className="flex items-center gap-2 mb-6 pb-4 border-b border-gray-700">
+        <GitCompare className="w-5 h-5 text-gray-300" />
+        <h3 className="text-lg font-semibold text-gray-100">Settings Comparison</h3>
         <div className="ml-auto">
           <CopyButton 
             text={diff ? JSON.stringify(diff, null, 2) : 'No changes detected'} 
@@ -224,9 +224,9 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
 
       {diff && Object.keys(diff).length > 0 ? (
         <div className="space-y-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <h4 className="font-semibold text-blue-800 mb-2">Changes Detected</h4>
-            <p className="text-blue-700 text-sm">
+          <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4 mb-6">
+            <h4 className="font-semibold text-blue-300 mb-2">Changes Detected</h4>
+            <p className="text-blue-200 text-sm">
               The following settings were modified between the previous and current update:
             </p>
             <div className="mt-3">
@@ -242,22 +242,22 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
         </div>
       ) : (
         <div className="text-center py-8">
-          <div className="bg-gray-50 rounded-lg p-6">
-            <h4 className="text-lg font-semibold text-gray-700 mb-2">No Changes Detected</h4>
-            <p className="text-gray-500">The settings appear to be identical to the previous update.</p>
+          <div className="bg-gray-800/50 rounded-lg p-6">
+            <h4 className="text-lg font-semibold text-gray-300 mb-2">No Changes Detected</h4>
+            <p className="text-gray-400">The settings appear to be identical to the previous update.</p>
           </div>
         </div>
       )}
 
-      <div className="mt-8 pt-6 border-t border-gray-200">
-        <h4 className="text-md font-semibold text-gray-700 mb-4">Raw Settings Data</h4>
+      <div className="mt-8 pt-6 border-t border-gray-700">
+        <h4 className="text-md font-semibold text-gray-300 mb-4">Raw Settings Data</h4>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div>
             <div className="flex items-center gap-2 mb-3">
               <div className="w-3 h-3 bg-red-400 rounded-full"></div>
-              <span className="font-medium text-gray-700">Previous Settings</span>
+              <span className="font-medium text-gray-300">Previous Settings</span>
             </div>
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+            <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-700">
               <div className="flex justify-end mb-2">
                 <CopyButton 
                   text={JSON.stringify(previousSettings, null, 2)} 
@@ -265,7 +265,7 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
                   Copy Previous
                 </CopyButton>
               </div>
-              <pre className="text-sm overflow-auto max-h-[40vh] whitespace-pre-wrap break-words">
+              <pre className="text-sm overflow-auto max-h-[40vh] whitespace-pre-wrap break-words text-gray-300">
                 {JSON.stringify(previousSettings, null, 2)}
               </pre>
             </div>
@@ -274,9 +274,9 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
           <div>
             <div className="flex items-center gap-2 mb-3">
               <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-              <span className="font-medium text-gray-700">Current Settings</span>
+              <span className="font-medium text-gray-300">Current Settings</span>
             </div>
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+            <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-700">
               <div className="flex justify-end mb-2">
                 <CopyButton 
                   text={JSON.stringify(currentSettings, null, 2)} 
@@ -284,7 +284,7 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
                   Copy Current
                 </CopyButton>
               </div>
-              <pre className="text-sm overflow-auto max-h-[40vh] whitespace-pre-wrap break-words">
+              <pre className="text-sm overflow-auto max-h-[40vh] whitespace-pre-wrap break-words text-gray-300">
                 {JSON.stringify(currentSettings, null, 2)}
               </pre>
             </div>

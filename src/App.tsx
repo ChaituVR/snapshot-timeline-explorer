@@ -1,11 +1,18 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, Calendar } from 'lucide-react';
+import { Search, Calendar, Filter } from 'lucide-react';
 import { DayPicker } from 'react-day-picker';
 import { format } from 'date-fns';
 import { Timeline } from './components/Timeline';
 import { fetchMessages } from './api';
 import type { SnapshotMessage } from './types';
 import 'react-day-picker/dist/style.css';
+
+const EVENT_TYPES = [
+  { value: 'proposal', label: 'New Proposal', color: 'from-cyan-400 to-blue-500' },
+  { value: 'settings', label: 'Settings Update', color: 'from-amber-400 to-orange-500' },
+  { value: 'delete-proposal', label: 'Proposal Deleted', color: 'from-red-400 to-pink-500' },
+  { value: 'update-proposal', label: 'Proposal Updated', color: 'from-emerald-400 to-green-500' },
+];
 
 function App() {
   const [space, setSpace] = useState('thanku.eth');
@@ -15,6 +22,8 @@ function App() {
   const [hasMore, setHasMore] = useState(true);
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [showEventFilter, setShowEventFilter] = useState(false);
+  const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>(['proposal', 'settings', 'delete-proposal', 'update-proposal']);
   
   const observerTarget = useRef<HTMLDivElement>(null);
   const lastTimestamp = useRef<number | undefined>(undefined);
@@ -71,6 +80,7 @@ function App() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessages([]);
+    setMessages(prev => prev.filter(msg => selectedEventTypes.includes(msg.type)));
     setHasMore(true);
     lastTimestamp.current = undefined;
     await loadMessages(true);
@@ -93,20 +103,47 @@ function App() {
     loadMessages(true);
   };
 
+  const toggleEventType = (eventType: string) => {
+    setSelectedEventTypes(prev => {
+      const newTypes = prev.includes(eventType)
+        ? prev.filter(type => type !== eventType)
+        : [...prev, eventType];
+      return newTypes;
+    });
+  };
+
+  const applyEventFilter = () => {
+    setShowEventFilter(false);
+    setMessages([]);
+    setHasMore(true);
+    lastTimestamp.current = undefined;
+    loadMessages(true);
+  };
+
+  // Filter messages by selected event types
+  const filteredMessages = messages.filter(msg => selectedEventTypes.includes(msg.type));
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-black">
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="mb-12">
           <div className="text-center mb-8">
+            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-2xl flex items-center justify-center shadow-2xl">
+              <Search className="w-8 h-8 text-white" />
+            </div>
             <h1 className="text-4xl font-bold text-gray-900 mb-3">
-              Snapshot Timeline Explorer
+              <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
+                Snapshot Timeline Explorer
+              </span>
             </h1>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Explore governance activities and proposals across Snapshot spaces with an interactive timeline view
+              <span className="text-gray-300">
+                Explore governance activities and proposals across Snapshot spaces with an interactive timeline view
+              </span>
             </p>
           </div>
           
-          <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
+          <div className="bg-gray-800/50 backdrop-blur-xl rounded-2xl shadow-2xl p-6 border border-gray-700/50">
             <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1 relative">
                 <input
@@ -114,16 +151,16 @@ function App() {
                   value={space}
                   onChange={(e) => setSpace(e.target.value)}
                   placeholder="Enter space name (e.g., thanku.eth)"
-                  className="w-full px-4 py-3 pl-12 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all duration-200 bg-gray-50 focus:bg-white"
+                  className="w-full px-4 py-3 pl-12 rounded-xl border border-gray-600 focus:ring-2 focus:ring-cyan-400 focus:border-transparent outline-none transition-all duration-200 bg-gray-700/50 text-white placeholder-gray-400 focus:bg-gray-700"
                 />
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
               </div>
               
               <div className="relative">
                 <button
                   type="button"
                   onClick={() => setShowCalendar(!showCalendar)}
-                  className="px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors flex items-center gap-2 min-w-[160px] justify-center"
+                  className="px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl hover:bg-gray-600/50 transition-colors flex items-center gap-2 min-w-[160px] justify-center text-white"
                 >
                   <Calendar size={20} />
                   {selectedDate ? (
@@ -136,19 +173,72 @@ function App() {
                   <button
                     type="button"
                     onClick={clearDate}
-                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs hover:bg-red-600 transition-colors"
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-red-400 to-pink-500 text-white rounded-full text-xs hover:from-red-500 hover:to-pink-600 transition-all duration-200 shadow-lg"
                   >
                     ×
                   </button>
                 )}
                 {showCalendar && (
-                  <div className="absolute right-0 mt-2 bg-white rounded-xl shadow-xl z-10 border border-gray-200">
                     <DayPicker
                       mode="single"
                       selected={selectedDate}
                       onSelect={handleDateSelect}
-                      className="p-3"
+                      className="p-3 text-white [&_.rdp-day]:text-white [&_.rdp-day_button:hover]:bg-gray-700 [&_.rdp-day_button.rdp-day_selected]:bg-gradient-to-r [&_.rdp-day_button.rdp-day_selected]:from-cyan-400 [&_.rdp-day_button.rdp-day_selected]:to-blue-500"
                     />
+                  </div>
+                )}
+              </div>
+              
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowEventFilter(!showEventFilter)}
+                  className="px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl hover:bg-gray-600/50 transition-colors flex items-center gap-2 min-w-[160px] justify-center text-white"
+                >
+                  <Filter size={20} />
+                  Filter by Event
+                  {selectedEventTypes.length < EVENT_TYPES.length && (
+                    <span className="ml-1 px-2 py-0.5 bg-gradient-to-r from-cyan-400 to-blue-500 text-white text-xs rounded-full">
+                      {selectedEventTypes.length}
+                    </span>
+                  )}
+                </button>
+                {showEventFilter && (
+                  <div className="absolute right-0 mt-2 bg-gray-800 rounded-xl shadow-2xl z-10 border border-gray-700 p-4 min-w-[280px]">
+                    <h4 className="text-white font-semibold mb-3">Event Types</h4>
+                    <div className="space-y-2">
+                      {EVENT_TYPES.map((eventType) => (
+                        <label
+                          key={eventType.value}
+                          className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-700/50 cursor-pointer transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedEventTypes.includes(eventType.value)}
+                            onChange={() => toggleEventType(eventType.value)}
+                            className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-cyan-400 focus:ring-cyan-400 focus:ring-2"
+                          />
+                          <div className={`w-3 h-3 rounded-full bg-gradient-to-r ${eventType.color}`}></div>
+                          <span className="text-white text-sm">{eventType.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <div className="flex gap-2 mt-4 pt-3 border-t border-gray-700">
+                      <button
+                        type="button"
+                        onClick={applyEventFilter}
+                        className="flex-1 px-3 py-2 bg-gradient-to-r from-cyan-400 to-blue-500 text-white rounded-lg hover:from-cyan-500 hover:to-blue-600 transition-all duration-200 text-sm font-medium"
+                      >
+                        Apply Filter
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowEventFilter(false)}
+                        className="px-3 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors text-sm"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -156,27 +246,27 @@ function App() {
               <button
                 type="submit"
                 disabled={loading}
-                className="px-8 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-200 font-medium shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-8 py-3 bg-gradient-to-r from-cyan-400 to-blue-500 text-white rounded-xl hover:from-cyan-500 hover:to-blue-600 transition-all duration-200 font-medium shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Loading...' : 'Explore Timeline'}
               </button>
             </form>
             
             {error && (
-              <div className="mt-4 p-4 bg-red-50 text-red-700 rounded-xl border border-red-200">
+              <div className="mt-4 p-4 bg-red-900/20 text-red-400 rounded-xl border border-red-800/50 backdrop-blur-sm">
                 <strong>Error:</strong> {error}
               </div>
             )}
           </div>
         </div>
 
-        <Timeline messages={messages} loading={loading} space={space} />
+        <Timeline messages={filteredMessages} loading={loading} space={space} />
         
         <div ref={observerTarget} className="h-4" />
         
-        {!hasMore && messages.length > 0 && (
+        {!hasMore && filteredMessages.length > 0 && (
           <div className="text-center py-8">
-            <p className="text-gray-500 text-lg">🎉 You've reached the beginning of time!</p>
+            <p className="text-gray-400 text-lg">🎉 You've reached the beginning of time!</p>
           </div>
         )}
       </div>

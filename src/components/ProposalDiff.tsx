@@ -79,8 +79,8 @@ export const ProposalDiff: React.FC<ProposalDiffProps> = ({ currentMessage, spac
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-3 border-blue-200 border-t-blue-600 mb-4"></div>
-        <p className="text-gray-600">Loading proposal comparison...</p>
+        <div className="animate-spin rounded-full h-12 w-12 border-3 border-gray-600 border-t-cyan-400 mb-4"></div>
+        <p className="text-gray-300">Loading proposal comparison...</p>
       </div>
     );
   }
@@ -88,10 +88,10 @@ export const ProposalDiff: React.FC<ProposalDiffProps> = ({ currentMessage, spac
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+        <AlertCircle className="w-12 h-12 text-red-400 mb-4" />
         <div className="text-center">
-          <h3 className="text-lg font-semibold text-red-700 mb-2">Failed to Load Comparison</h3>
-          <p className="text-red-600">{error}</p>
+          <h3 className="text-lg font-semibold text-red-400 mb-2">Failed to Load Comparison</h3>
+          <p className="text-red-300">{error}</p>
         </div>
       </div>
     );
@@ -200,12 +200,12 @@ export const ProposalDiff: React.FC<ProposalDiffProps> = ({ currentMessage, spac
 
   return (
     <div className="max-w-none">
-      <div className="flex items-center gap-2 mb-6 pb-4 border-b border-gray-200">
-        <GitCompare className="w-5 h-5 text-gray-600" />
-        <h3 className="text-lg font-semibold text-gray-800">Proposal Update Comparison</h3>
+      <div className="flex items-center gap-2 mb-6 pb-4 border-b border-gray-700">
+        <GitCompare className="w-5 h-5 text-gray-300" />
+        <h3 className="text-lg font-semibold text-gray-100">Proposal Update Comparison</h3>
         {proposalId && (
           <div className="flex items-center gap-2">
-            <code className="text-sm bg-gray-100 px-2 py-1 rounded text-gray-600">
+            <code className="text-sm bg-gray-700 px-2 py-1 rounded text-gray-300">
               {proposalId.slice(0, 8)}...{proposalId.slice(-8)}
             </code>
             <CopyButton text={proposalId} variant="minimal">
@@ -224,9 +224,9 @@ export const ProposalDiff: React.FC<ProposalDiffProps> = ({ currentMessage, spac
 
       {diff && Object.keys(diff).length > 0 ? (
         <div className="space-y-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <h4 className="font-semibold text-blue-800 mb-2">Changes Detected</h4>
-            <p className="text-blue-700 text-sm">
+          <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4 mb-6">
+            <h4 className="font-semibold text-blue-300 mb-2">Changes Detected</h4>
+            <p className="text-blue-200 text-sm">
               The following changes were made to the proposal:
             </p>
             <div className="mt-3">
@@ -242,22 +242,22 @@ export const ProposalDiff: React.FC<ProposalDiffProps> = ({ currentMessage, spac
         </div>
       ) : (
         <div className="text-center py-8">
-          <div className="bg-gray-50 rounded-lg p-6">
-            <h4 className="text-lg font-semibold text-gray-700 mb-2">No Changes Detected</h4>
-            <p className="text-gray-500">The proposal appears to be identical to the original.</p>
+          <div className="bg-gray-800/50 rounded-lg p-6">
+            <h4 className="text-lg font-semibold text-gray-300 mb-2">No Changes Detected</h4>
+            <p className="text-gray-400">The proposal appears to be identical to the original.</p>
           </div>
         </div>
       )}
 
-      <div className="mt-8 pt-6 border-t border-gray-200">
-        <h4 className="text-md font-semibold text-gray-700 mb-4">Raw Proposal Data</h4>
+      <div className="mt-8 pt-6 border-t border-gray-700">
+        <h4 className="text-md font-semibold text-gray-300 mb-4">Raw Proposal Data</h4>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div>
             <div className="flex items-center gap-2 mb-3">
               <div className="w-3 h-3 bg-red-400 rounded-full"></div>
-              <span className="font-medium text-gray-700">Original Proposal</span>
+              <span className="font-medium text-gray-300">Original Proposal</span>
             </div>
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+            <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-700">
               <div className="flex justify-end mb-2">
                 <CopyButton 
                   text={JSON.stringify(originalProposal, null, 2)} 
@@ -265,7 +265,7 @@ export const ProposalDiff: React.FC<ProposalDiffProps> = ({ currentMessage, spac
                   Copy Original
                 </CopyButton>
               </div>
-              <pre className="text-sm overflow-auto max-h-[40vh] whitespace-pre-wrap break-words">
+              <pre className="text-sm overflow-auto max-h-[40vh] whitespace-pre-wrap break-words text-gray-300">
                 {JSON.stringify(originalProposal, null, 2)}
               </pre>
             </div>
@@ -274,9 +274,9 @@ export const ProposalDiff: React.FC<ProposalDiffProps> = ({ currentMessage, spac
           <div>
             <div className="flex items-center gap-2 mb-3">
               <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-              <span className="font-medium text-gray-700">Updated Proposal</span>
+              <span className="font-medium text-gray-300">Updated Proposal</span>
             </div>
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+            <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-700">
               <div className="flex justify-end mb-2">
                 <CopyButton 
                   text={JSON.stringify(currentProposal, null, 2)} 
@@ -284,7 +284,7 @@ export const ProposalDiff: React.FC<ProposalDiffProps> = ({ currentMessage, spac
                   Copy Updated
                 </CopyButton>
               </div>
-              <pre className="text-sm overflow-auto max-h-[40vh] whitespace-pre-wrap break-words">
+              <pre className="text-sm overflow-auto max-h-[40vh] whitespace-pre-wrap break-words text-gray-300">
                 {JSON.stringify(currentProposal, null, 2)}
               </pre>
             </div>
