@@ -160,7 +160,7 @@ function App() {
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={20} />
               </div>
               
-              <div className="relative">
+              <div className="relative z-50">
                 <button
                   type="button"
                   onClick={() => setShowCalendar(!showCalendar)}
@@ -182,19 +182,9 @@ function App() {
                     ×
                   </button>
                 )}
-                {showCalendar && (
-                  <div className="absolute right-0 top-full mt-2 z-50">
-                    <DayPicker
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={handleDateSelect}
-                      className="p-3 bg-gray-800 rounded-xl shadow-xl border border-gray-700 text-white [&_.rdp-day]:text-white [&_.rdp-day_button:hover]:bg-gray-700 [&_.rdp-day_button.rdp-day_selected]:bg-gradient-to-r [&_.rdp-day_button.rdp-day_selected]:from-cyan-400 [&_.rdp-day_button.rdp-day_selected]:to-blue-500"
-                    />
-                  </div>
-                )}
               </div>
               
-              <div className="relative">
+              <div className="relative z-40">
                 <button
                   type="button"
                   onClick={() => setShowEventFilter(!showEventFilter)}
@@ -208,44 +198,6 @@ function App() {
                     </span>
                   )}
                 </button>
-                {showEventFilter && (
-                  <div className="absolute right-0 top-full mt-2 bg-gray-800 rounded-xl shadow-xl z-50 border border-gray-700 p-4 min-w-[280px]">
-                    <h4 className="text-white font-semibold mb-3">Event Types</h4>
-                    <div className="space-y-2">
-                      {EVENT_TYPES.map((eventType) => (
-                        <label
-                          key={eventType.value}
-                          className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-700/50 cursor-pointer transition-all duration-200"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedEventTypes.includes(eventType.value)}
-                            onChange={() => toggleEventType(eventType.value)}
-                            className="w-4 h-4 rounded border-gray-500 bg-gray-700 text-cyan-400 focus:ring-cyan-400 focus:ring-2"
-                          />
-                          <div className={`w-3 h-3 rounded-full bg-gradient-to-r ${eventType.color}`}></div>
-                          <span className="text-white text-sm">{eventType.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                    <div className="flex gap-2 mt-4 pt-3 border-t border-gray-600">
-                      <button
-                        type="button"
-                        onClick={applyEventFilter}
-                        className="flex-1 px-3 py-2 bg-gradient-to-r from-cyan-400 to-blue-500 text-white rounded-lg hover:from-cyan-500 hover:to-blue-600 transition-all duration-200 text-sm font-medium"
-                      >
-                        Apply Filter
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowEventFilter(false)}
-                        className="px-3 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-all duration-200 text-sm border border-gray-600"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
               
               <button
@@ -277,6 +229,68 @@ function App() {
           </div>
         )}
       </div>
+
+      {/* Calendar Dropdown Portal */}
+      {showCalendar && (
+        <div className="fixed inset-0 z-50" onClick={() => setShowCalendar(false)}>
+          <div 
+            className="absolute top-32 right-4 max-w-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <DayPicker
+              mode="single"
+              selected={selectedDate}
+              onSelect={handleDateSelect}
+              className="p-3 bg-gray-800 rounded-xl shadow-xl border border-gray-700 text-white [&_.rdp-day]:text-white [&_.rdp-day_button:hover]:bg-gray-700 [&_.rdp-day_button.rdp-day_selected]:bg-gradient-to-r [&_.rdp-day_button.rdp-day_selected]:from-cyan-400 [&_.rdp-day_button.rdp-day_selected]:to-blue-500"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Event Filter Dropdown Portal */}
+      {showEventFilter && (
+        <div className="fixed inset-0 z-40" onClick={() => setShowEventFilter(false)}>
+          <div 
+            className="absolute top-32 right-4 bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-4 min-w-[280px]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h4 className="text-white font-semibold mb-3">Event Types</h4>
+            <div className="space-y-2">
+              {EVENT_TYPES.map((eventType) => (
+                <label
+                  key={eventType.value}
+                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-700/50 cursor-pointer transition-all duration-200"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedEventTypes.includes(eventType.value)}
+                    onChange={() => toggleEventType(eventType.value)}
+                    className="w-4 h-4 rounded border-gray-500 bg-gray-700 text-cyan-400 focus:ring-cyan-400 focus:ring-2"
+                  />
+                  <div className={`w-3 h-3 rounded-full bg-gradient-to-r ${eventType.color}`}></div>
+                  <span className="text-white text-sm">{eventType.label}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-2 mt-4 pt-3 border-t border-gray-600">
+              <button
+                type="button"
+                onClick={applyEventFilter}
+                className="flex-1 px-3 py-2 bg-gradient-to-r from-cyan-400 to-blue-500 text-white rounded-lg hover:from-cyan-500 hover:to-blue-600 transition-all duration-200 text-sm font-medium"
+              >
+                Apply Filter
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowEventFilter(false)}
+                className="px-3 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-all duration-200 text-sm border border-gray-600"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
