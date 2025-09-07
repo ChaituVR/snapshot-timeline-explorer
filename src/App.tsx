@@ -132,8 +132,8 @@ function App() {
               <img 
                 src="https://raw.githubusercontent.com/snapshot-labs/brand/refs/heads/master/icon/icon.png" 
                 alt="Snapshot Logo" 
-                className="w-full h-full object-contain"
-              />
+                className="w-full px-4 py-3 pl-12 rounded-xl border border-slate-600/50 focus:ring-2 focus:ring-cyan-400/60 focus:border-cyan-400/50 outline-none transition-all duration-300 bg-gradient-to-br from-slate-800/50 via-slate-700/30 to-slate-900/50 backdrop-blur-xl text-white placeholder-gray-400 focus:from-slate-700/60 focus:via-slate-600/40 focus:to-slate-800/60"
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
             </div>
             <h1 className="text-4xl font-bold text-gray-900 mb-3">
               <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
@@ -164,7 +164,7 @@ function App() {
                 <button
                   type="button"
                   onClick={() => setShowCalendar(!showCalendar)}
-                  className="px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl hover:bg-gray-600/50 transition-colors flex items-center gap-2 min-w-[160px] justify-center text-white"
+                  className="px-4 py-3 bg-gradient-to-br from-slate-800/60 via-slate-700/40 to-slate-900/60 backdrop-blur-xl border border-slate-600/50 rounded-xl hover:from-slate-700/70 hover:via-slate-600/50 hover:to-slate-800/70 hover:border-slate-500/60 transition-all duration-300 flex items-center gap-2 min-w-[160px] justify-center text-white shadow-lg hover:shadow-xl"
                 >
                   <Calendar size={20} />
                   {selectedDate ? (
@@ -177,18 +177,20 @@ function App() {
                   <button
                     type="button"
                     onClick={clearDate}
-                    className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-red-400 to-pink-500 text-white rounded-full text-xs hover:from-red-500 hover:to-pink-600 transition-all duration-200 shadow-lg"
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-br from-red-400/90 via-pink-500/80 to-red-600/90 backdrop-blur-sm text-white rounded-full text-xs hover:from-red-500/95 hover:via-pink-600/85 hover:to-red-700/95 transition-all duration-200 shadow-lg border border-red-300/30"
                   >
                     ×
                   </button>
                 )}
                 {showCalendar && (
+                  <div className="absolute right-0 mt-2 z-40">
                     <DayPicker
                       mode="single"
                       selected={selectedDate}
                       onSelect={handleDateSelect}
-                      className="p-3 text-white [&_.rdp-day]:text-white [&_.rdp-day_button:hover]:bg-gray-700 [&_.rdp-day_button.rdp-day_selected]:bg-gradient-to-r [&_.rdp-day_button.rdp-day_selected]:from-cyan-400 [&_.rdp-day_button.rdp-day_selected]:to-blue-500"
+                      className="p-4 bg-gradient-to-br from-slate-800/95 via-slate-700/90 to-slate-900/95 backdrop-blur-xl rounded-xl shadow-2xl border border-slate-600/50 text-white [&_.rdp-day]:text-white [&_.rdp-day_button:hover]:bg-gradient-to-br [&_.rdp-day_button:hover]:from-slate-600/60 [&_.rdp-day_button:hover]:to-slate-700/60 [&_.rdp-day_button.rdp-day_selected]:bg-gradient-to-br [&_.rdp-day_button.rdp-day_selected]:from-cyan-400/90 [&_.rdp-day_button.rdp-day_selected]:via-blue-500/80 [&_.rdp-day_button.rdp-day_selected]:to-purple-600/90 [&_.rdp-day_button.rdp-day_selected]:shadow-lg"
                     />
+                  </div>
                 )}
               </div>
               
@@ -196,7 +198,7 @@ function App() {
                 <button
                   type="button"
                   onClick={() => setShowEventFilter(!showEventFilter)}
-                  className="px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-xl hover:bg-gray-600/50 transition-colors flex items-center gap-2 min-w-[160px] justify-center text-white"
+                  className="px-4 py-3 bg-gradient-to-br from-slate-800/60 via-slate-700/40 to-slate-900/60 backdrop-blur-xl border border-slate-600/50 rounded-xl hover:from-slate-700/70 hover:via-slate-600/50 hover:to-slate-800/70 hover:border-slate-500/60 transition-all duration-300 flex items-center gap-2 min-w-[160px] justify-center text-white shadow-lg hover:shadow-xl"
                 >
                   <Filter size={20} />
                   Filter by Event
@@ -207,37 +209,37 @@ function App() {
                   )}
                 </button>
                 {showEventFilter && (
-                  <div className="absolute right-0 mt-2 bg-gray-800 rounded-xl shadow-2xl z-30 border border-gray-700 p-4 min-w-[280px]">
+                  <div className="absolute right-0 mt-2 bg-gradient-to-br from-slate-800/95 via-slate-700/90 to-slate-900/95 backdrop-blur-xl rounded-xl shadow-2xl z-50 border border-slate-600/50 p-4 min-w-[280px]">
                     <h4 className="text-white font-semibold mb-3">Event Types</h4>
                     <div className="space-y-2">
                       {EVENT_TYPES.map((eventType) => (
                         <label
                           key={eventType.value}
-                          className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-700/50 cursor-pointer transition-colors"
+                          className="flex items-center gap-3 p-2 rounded-lg hover:bg-gradient-to-r hover:from-slate-700/40 hover:to-slate-600/40 cursor-pointer transition-all duration-200"
                         >
                           <input
                             type="checkbox"
                             checked={selectedEventTypes.includes(eventType.value)}
                             onChange={() => toggleEventType(eventType.value)}
-                            className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-cyan-400 focus:ring-cyan-400 focus:ring-2"
+                            className="w-4 h-4 rounded border-slate-500 bg-slate-700/50 text-cyan-400 focus:ring-cyan-400 focus:ring-2"
                           />
                           <div className={`w-3 h-3 rounded-full bg-gradient-to-r ${eventType.color}`}></div>
                           <span className="text-white text-sm">{eventType.label}</span>
                         </label>
                       ))}
                     </div>
-                    <div className="flex gap-2 mt-4 pt-3 border-t border-gray-700">
+                    <div className="flex gap-2 mt-4 pt-3 border-t border-slate-600/50">
                       <button
                         type="button"
                         onClick={applyEventFilter}
-                        className="flex-1 px-3 py-2 bg-gradient-to-r from-cyan-400 to-blue-500 text-white rounded-lg hover:from-cyan-500 hover:to-blue-600 transition-all duration-200 text-sm font-medium"
+                        className="flex-1 px-3 py-2 bg-gradient-to-br from-cyan-400/90 via-blue-500/80 to-purple-600/90 backdrop-blur-sm text-white rounded-lg hover:from-cyan-500/95 hover:via-blue-600/85 hover:to-purple-700/95 transition-all duration-200 text-sm font-medium shadow-lg"
                       >
                         Apply Filter
                       </button>
                       <button
                         type="button"
                         onClick={() => setShowEventFilter(false)}
-                        className="px-3 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors text-sm"
+                        className="px-3 py-2 bg-gradient-to-br from-slate-700/60 to-slate-800/60 backdrop-blur-sm text-gray-300 rounded-lg hover:from-slate-600/70 hover:to-slate-700/70 transition-all duration-200 text-sm border border-slate-600/30"
                       >
                         Cancel
                       </button>
@@ -249,21 +251,21 @@ function App() {
               <button
                 type="submit"
                 disabled={loading}
-                className="px-8 py-3 bg-gradient-to-r from-cyan-400 to-blue-500 text-white rounded-xl hover:from-cyan-500 hover:to-blue-600 transition-all duration-200 font-medium shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-8 py-3 bg-gradient-to-br from-cyan-400/90 via-blue-500/80 to-purple-600/90 backdrop-blur-sm text-white rounded-xl hover:from-cyan-500/95 hover:via-blue-600/85 hover:to-purple-700/95 transition-all duration-300 font-medium shadow-lg hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed border border-cyan-400/30"
               >
                 {loading ? 'Loading...' : 'Explore Timeline'}
               </button>
             </form>
             
             {error && (
-              <div className="mt-4 p-4 bg-red-900/20 text-red-400 rounded-xl border border-red-800/50 backdrop-blur-sm">
+              <div className="mt-4 p-4 bg-gradient-to-br from-red-900/30 via-red-800/20 to-red-900/30 backdrop-blur-xl text-red-400 rounded-xl border border-red-700/50">
                 <strong>Error:</strong> {error}
               </div>
             )}
           </div>
         </div>
 
-        <Timeline messages={filteredMessages} loading={loading} space={space} />
+        <div className="bg-gradient-to-br from-slate-800/40 via-slate-700/30 to-slate-900/40 backdrop-blur-xl rounded-2xl shadow-2xl p-6 border border-slate-600/40">
         
         <div ref={observerTarget} className="h-4" />
         
