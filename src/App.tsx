@@ -58,7 +58,7 @@ function App() {
     } finally {
       setLoading(false);
     }
-  }, [space, selectedDate]);
+  }, [space, selectedDate, messages.length]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -132,8 +132,8 @@ function App() {
               <img 
                 src="https://raw.githubusercontent.com/snapshot-labs/brand/refs/heads/master/icon/icon.png" 
                 alt="Snapshot Logo" 
-                className="w-full px-4 py-3 pl-12 rounded-xl border border-slate-600/50 focus:ring-2 focus:ring-cyan-400/60 focus:border-cyan-400/50 outline-none transition-all duration-300 bg-gradient-to-br from-slate-800/50 via-slate-700/30 to-slate-900/50 backdrop-blur-xl text-white placeholder-gray-400 focus:from-slate-700/60 focus:via-slate-600/40 focus:to-slate-800/60"
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                className="w-full h-full object-contain"
+              />
             </div>
             <h1 className="text-4xl font-bold text-gray-900 mb-3">
               <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
@@ -266,6 +266,8 @@ function App() {
         </div>
 
         <div className="bg-gradient-to-br from-slate-800/40 via-slate-700/30 to-slate-900/40 backdrop-blur-xl rounded-2xl shadow-2xl p-6 border border-slate-600/40">
+          <Timeline messages={filteredMessages} />
+        </div>
         
         <div ref={observerTarget} className="h-4" />
         
