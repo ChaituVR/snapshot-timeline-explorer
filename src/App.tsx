@@ -164,7 +164,7 @@ function App() {
                 <button
                   type="button"
                   onClick={() => setShowCalendar(!showCalendar)}
-                  className="px-4 py-3 bg-gradient-to-br from-slate-800/60 via-slate-700/40 to-slate-900/60 backdrop-blur-xl border border-slate-600/50 rounded-xl hover:from-slate-700/70 hover:via-slate-600/50 hover:to-slate-800/70 hover:border-slate-500/60 transition-all duration-300 flex items-center gap-2 min-w-[160px] justify-center text-white shadow-lg hover:shadow-xl"
+                  className="px-4 py-3 bg-gradient-to-r from-gray-700/50 to-gray-800/50 border border-gray-600 rounded-xl hover:bg-gray-600/50 transition-all duration-200 flex items-center gap-2 min-w-[160px] justify-center text-white"
                 >
                   <Calendar size={20} />
                   {selectedDate ? (
@@ -177,18 +177,18 @@ function App() {
                   <button
                     type="button"
                     onClick={clearDate}
-                    className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-br from-red-400/90 via-pink-500/80 to-red-600/90 backdrop-blur-sm text-white rounded-full text-xs hover:from-red-500/95 hover:via-pink-600/85 hover:to-red-700/95 transition-all duration-200 shadow-lg border border-red-300/30"
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs hover:bg-red-600 transition-all duration-200"
                   >
                     ×
                   </button>
                 )}
                 {showCalendar && (
-                  <div className="absolute right-0 mt-2 z-40">
+                  <div className="absolute right-0 top-full mt-2 z-50">
                     <DayPicker
                       mode="single"
                       selected={selectedDate}
                       onSelect={handleDateSelect}
-                      className="p-4 bg-gradient-to-br from-slate-800/95 via-slate-700/90 to-slate-900/95 backdrop-blur-xl rounded-xl shadow-2xl border border-slate-600/50 text-white [&_.rdp-day]:text-white [&_.rdp-day_button:hover]:bg-gradient-to-br [&_.rdp-day_button:hover]:from-slate-600/60 [&_.rdp-day_button:hover]:to-slate-700/60 [&_.rdp-day_button.rdp-day_selected]:bg-gradient-to-br [&_.rdp-day_button.rdp-day_selected]:from-cyan-400/90 [&_.rdp-day_button.rdp-day_selected]:via-blue-500/80 [&_.rdp-day_button.rdp-day_selected]:to-purple-600/90 [&_.rdp-day_button.rdp-day_selected]:shadow-lg"
+                      className="p-3 bg-gray-800 rounded-xl shadow-xl border border-gray-700 text-white [&_.rdp-day]:text-white [&_.rdp-day_button:hover]:bg-gray-700 [&_.rdp-day_button.rdp-day_selected]:bg-gradient-to-r [&_.rdp-day_button.rdp-day_selected]:from-cyan-400 [&_.rdp-day_button.rdp-day_selected]:to-blue-500"
                     />
                   </div>
                 )}
@@ -198,7 +198,7 @@ function App() {
                 <button
                   type="button"
                   onClick={() => setShowEventFilter(!showEventFilter)}
-                  className="px-4 py-3 bg-gradient-to-br from-slate-800/60 via-slate-700/40 to-slate-900/60 backdrop-blur-xl border border-slate-600/50 rounded-xl hover:from-slate-700/70 hover:via-slate-600/50 hover:to-slate-800/70 hover:border-slate-500/60 transition-all duration-300 flex items-center gap-2 min-w-[160px] justify-center text-white shadow-lg hover:shadow-xl"
+                  className="px-4 py-3 bg-gradient-to-r from-gray-700/50 to-gray-800/50 border border-gray-600 rounded-xl hover:bg-gray-600/50 transition-all duration-200 flex items-center gap-2 min-w-[160px] justify-center text-white"
                 >
                   <Filter size={20} />
                   Filter by Event
@@ -209,37 +209,37 @@ function App() {
                   )}
                 </button>
                 {showEventFilter && (
-                  <div className="absolute right-0 mt-2 bg-gradient-to-br from-slate-800/95 via-slate-700/90 to-slate-900/95 backdrop-blur-xl rounded-xl shadow-2xl z-50 border border-slate-600/50 p-4 min-w-[280px]">
+                  <div className="absolute right-0 top-full mt-2 bg-gray-800 rounded-xl shadow-xl z-50 border border-gray-700 p-4 min-w-[280px]">
                     <h4 className="text-white font-semibold mb-3">Event Types</h4>
                     <div className="space-y-2">
                       {EVENT_TYPES.map((eventType) => (
                         <label
                           key={eventType.value}
-                          className="flex items-center gap-3 p-2 rounded-lg hover:bg-gradient-to-r hover:from-slate-700/40 hover:to-slate-600/40 cursor-pointer transition-all duration-200"
+                          className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-700/50 cursor-pointer transition-all duration-200"
                         >
                           <input
                             type="checkbox"
                             checked={selectedEventTypes.includes(eventType.value)}
                             onChange={() => toggleEventType(eventType.value)}
-                            className="w-4 h-4 rounded border-slate-500 bg-slate-700/50 text-cyan-400 focus:ring-cyan-400 focus:ring-2"
+                            className="w-4 h-4 rounded border-gray-500 bg-gray-700 text-cyan-400 focus:ring-cyan-400 focus:ring-2"
                           />
                           <div className={`w-3 h-3 rounded-full bg-gradient-to-r ${eventType.color}`}></div>
                           <span className="text-white text-sm">{eventType.label}</span>
                         </label>
                       ))}
                     </div>
-                    <div className="flex gap-2 mt-4 pt-3 border-t border-slate-600/50">
+                    <div className="flex gap-2 mt-4 pt-3 border-t border-gray-600">
                       <button
                         type="button"
                         onClick={applyEventFilter}
-                        className="flex-1 px-3 py-2 bg-gradient-to-br from-cyan-400/90 via-blue-500/80 to-purple-600/90 backdrop-blur-sm text-white rounded-lg hover:from-cyan-500/95 hover:via-blue-600/85 hover:to-purple-700/95 transition-all duration-200 text-sm font-medium shadow-lg"
+                        className="flex-1 px-3 py-2 bg-gradient-to-r from-cyan-400 to-blue-500 text-white rounded-lg hover:from-cyan-500 hover:to-blue-600 transition-all duration-200 text-sm font-medium"
                       >
                         Apply Filter
                       </button>
                       <button
                         type="button"
                         onClick={() => setShowEventFilter(false)}
-                        className="px-3 py-2 bg-gradient-to-br from-slate-700/60 to-slate-800/60 backdrop-blur-sm text-gray-300 rounded-lg hover:from-slate-600/70 hover:to-slate-700/70 transition-all duration-200 text-sm border border-slate-600/30"
+                        className="px-3 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-all duration-200 text-sm border border-gray-600"
                       >
                         Cancel
                       </button>
@@ -251,7 +251,7 @@ function App() {
               <button
                 type="submit"
                 disabled={loading}
-                className="px-8 py-3 bg-gradient-to-br from-cyan-400/90 via-blue-500/80 to-purple-600/90 backdrop-blur-sm text-white rounded-xl hover:from-cyan-500/95 hover:via-blue-600/85 hover:to-purple-700/95 transition-all duration-300 font-medium shadow-lg hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed border border-cyan-400/30"
+                className="px-8 py-3 bg-gradient-to-r from-cyan-400 to-blue-500 text-white rounded-xl hover:from-cyan-500 hover:to-blue-600 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Loading...' : 'Explore Timeline'}
               </button>
