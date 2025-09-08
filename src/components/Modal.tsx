@@ -57,24 +57,3 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
     </div>
   );
 };
-        <div 
-          className="fixed inset-0 transition-opacity bg-black bg-opacity-70 backdrop-blur-sm" 
-          onClick={onClose} 
-        />
-        
-        <div className="relative inline-block w-full max-w-4xl text-left bg-slate-800 rounded-2xl shadow-2xl transform transition-all border border-slate-700 max-h-[90vh] overflow-hidden">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 z-10 p-2 text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded-full transition-colors"
-          >
-            <X size={20} />
-          </button>
-          
-          <div className="p-6 overflow-y-auto max-h-[85vh]">
-            {children}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
