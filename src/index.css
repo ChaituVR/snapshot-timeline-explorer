@@ -1,3 +1,71 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  /* Brutalist harsh transitions */
+  * {
+    @apply transition-all duration-100;
+  }
+  
+  /* Brutalist scrollbar */
+  ::-webkit-scrollbar {
+    width: 12px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-white dark:bg-black border-2 border-black dark:border-white;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-black dark:bg-white border-2 border-black dark:border-white;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-red-600 border-red-600;
+  }
+  
+  /* Brutalist calendar styles */
+  .dark .rdp {
+    --rdp-cell-size: 40px;
+    --rdp-accent-color: #dc2626;
+    --rdp-background-color: #000000;
+  }
+  
+  .rdp {
+    --rdp-cell-size: 40px;
+    --rdp-accent-color: #000000;
+    --rdp-background-color: #ffffff;
+  }
+  
+  .rdp-day_selected {
+    @apply bg-red-600 text-white border-2 border-black dark:border-white;
+  }
+  
+  .rdp-day:hover:not(.rdp-day_selected) {
+    @apply bg-black dark:bg-white text-white dark:text-black border-2 border-black dark:border-white;
+  }
+  
+  .rdp-head_cell {
+    @apply text-black dark:text-white font-mono font-bold uppercase;
+  }
+  
+  .rdp-caption {
+    @apply text-black dark:text-white font-mono font-bold uppercase;
+  }
+  
+  .rdp-day {
+    @apply font-mono font-bold;
+  }
+  
+  /* Brutalist selection colors */
+  ::selection {
+    @apply bg-red-600 text-white;
+  }
+  
+  /* Brutalist body */
+  body {
+    @apply font-mono;
+  }
+}
+
