@@ -26,11 +26,16 @@ function App() {
       
       const timestamp = selectedDate ? Math.floor(selectedDate.getTime() / 1000) : undefined;
       
+      // For cursor-based pagination, we use timestamp_lt without skip
+      // On initial load: use the selected date timestamp (if any)
+      // On subsequent loads: use the timestamp of the last loaded message
+      const timestampCursor = isInitial ? timestamp : lastTimestamp.current;
+      
       const response = await fetchMessages(
         space,
         10,
-        isInitial ? 0 : messages.length,
-        isInitial && timestamp ? timestamp : lastTimestamp.current
+        0, // Always use skip=0, pagination is handled by timestamp_lt cursor
+        timestampCursor
       );
       
       const newMessages = response.messages;
