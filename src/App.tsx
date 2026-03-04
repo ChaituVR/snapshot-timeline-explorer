@@ -1,15 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, Calendar, Moon, Sun, Sparkles } from 'lucide-react';
+import { Calendar, Moon, Sun, Globe, Zap, Users } from 'lucide-react';
 import { DayPicker } from 'react-day-picker';
-import { format } from 'date-fns';
 import { Timeline } from './components/Timeline';
 import { ScrambleText } from './components/ScrambleText';
-import { fetchMessages } from './api';
-import type { SnapshotMessage } from './types';
-import 'react-day-picker/dist/style.css';
+import { fetchMessages, fetchAllMessages, searchSpaces } from './api';
+import type { SnapshotMessage, SpaceResult } from './types';
+import 'react-day-picker/style.css';
 
 function App() {
-  const [space, setSpace] = useState('thanku.eth');
+  const [space, setSpace] = useState('');
   const [messages, setMessages] = useState<SnapshotMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,53 +18,118 @@ function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [selectedTypes, setSelectedTypes] = useState<string[]>(['proposal', 'settings', 'delete-proposal', 'update-proposal']);
   const [hoverStates, setHoverStates] = useState<Record<string, boolean>>({});
+  const [mode, setMode] = useState<'space' | 'all'>('space');
+  const [hasSearched, setHasSearched] = useState(false);
+  const [spaceSuggestions, setSpaceSuggestions] = useState<SpaceResult[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   
   const observerTarget = useRef<HTMLDivElement>(null);
   const lastTimestamp = useRef<number | undefined>(undefined);
   const calendarRef = useRef<HTMLDivElement>(null);
+  const calendarBtnRef = useRef<HTMLButtonElement>(null);
+  const requestIdRef = useRef(0);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Toggle theme
   const toggleTheme = () => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
   };
 
-  // Apply theme to document
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
 
-  // Close calendar when clicking outside
+  // Close calendar on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
+      if (
+        calendarRef.current && !calendarRef.current.contains(event.target as Node) &&
+        calendarBtnRef.current && !calendarBtnRef.current.contains(event.target as Node)
+      ) {
         setShowCalendar(false);
       }
     };
-
     if (showCalendar) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [showCalendar]);
 
+  // Close suggestions on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node) &&
+        inputRef.current && !inputRef.current.contains(event.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+    if (showSuggestions) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showSuggestions]);
+
+  // Debounced space search
+  const handleSpaceInputChange = useCallback((value: string) => {
+    setSpace(value);
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    if (value.trim().length < 2) {
+      setSpaceSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    setLoadingSuggestions(true);
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const result = await searchSpaces(value.trim());
+        setSpaceSuggestions(result.ranking.items);
+        setShowSuggestions(result.ranking.items.length > 0);
+      } catch {
+        setSpaceSuggestions([]);
+        setShowSuggestions(false);
+      } finally {
+        setLoadingSuggestions(false);
+      }
+    }, 300);
+  }, []);
+
+  const handleSpaceSelect = useCallback((selected: SpaceResult) => {
+    setSpace(selected.id);
+    setShowSuggestions(false);
+    setSpaceSuggestions([]);
+  }, []);
+
+  const formatAvatar = (avatar: string) => {
+    if (avatar?.startsWith('ipfs://')) {
+      return avatar.replace('ipfs://', 'https://4everland.io/ipfs/');
+    }
+    return avatar;
+  };
+
   const loadMessages = useCallback(async (isInitial = false) => {
+    const requestId = ++requestIdRef.current;
     try {
       setLoading(true);
       setError(null);
       
       const timestamp = selectedDate ? Math.floor(selectedDate.getTime() / 1000) : undefined;
-      
-      // For cursor-based pagination, we use timestamp_lt without skip
-      // On initial load: use the selected date timestamp (if any)
-      // On subsequent loads: use the timestamp of the last loaded message
       const timestampCursor = isInitial ? timestamp : lastTimestamp.current;
       
-      const response = await fetchMessages(
-        space,
-        10,
-        0, // Always use skip=0, pagination is handled by timestamp_lt cursor
-        timestampCursor
-      );
+      let response;
+      if (mode === 'all') {
+        response = await fetchAllMessages(10, 0, timestampCursor);
+      } else {
+        response = await fetchMessages(space, 10, 0, timestampCursor);
+      }
+      
+      // Ignore stale responses
+      if (requestId !== requestIdRef.current) return;
       
       const newMessages = response.messages;
       
@@ -79,287 +143,440 @@ function App() {
       
       setMessages(prev => isInitial ? newMessages : [...prev, ...newMessages]);
     } catch (err) {
+      if (requestId !== requestIdRef.current) return;
       setError(err instanceof Error ? err.message : 'Failed to fetch messages');
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
-  }, [space, selectedDate]);
+  }, [space, selectedDate, mode]);
 
   useEffect(() => {
+    if (!hasSearched) return;
     const observer = new IntersectionObserver(
       entries => {
-        // Only load more if we have selected types and other conditions are met
         if (entries[0].isIntersecting && hasMore && !loading && selectedTypes.length > 0) {
           loadMessages();
         }
       },
       { threshold: 1.0 }
     );
-
     if (observerTarget.current) {
       observer.observe(observerTarget.current);
     }
-
     return () => observer.disconnect();
-  }, [hasMore, loading, loadMessages, selectedTypes]);
+  }, [hasMore, loading, loadMessages, selectedTypes, hasSearched]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (mode === 'space' && !space.trim()) return;
     setMessages([]);
     setHasMore(true);
+    setHasSearched(true);
     lastTimestamp.current = undefined;
     await loadMessages(true);
+  };
+
+  const handleAllEvents = async () => {
+    const requestId = ++requestIdRef.current;
+    setMode('all');
+    setSpace('');
+    setMessages([]);
+    setHasMore(true);
+    setHasSearched(true);
+    lastTimestamp.current = undefined;
+    try {
+      setLoading(true);
+      setError(null);
+      const timestamp = selectedDate ? Math.floor(selectedDate.getTime() / 1000) : undefined;
+      const response = await fetchAllMessages(10, 0, timestamp);
+      if (requestId !== requestIdRef.current) return;
+      const newMessages = response.messages;
+      if (newMessages.length < 10) setHasMore(false);
+      if (newMessages.length > 0) lastTimestamp.current = newMessages[newMessages.length - 1].timestamp;
+      setMessages(newMessages);
+    } catch (err) {
+      if (requestId !== requestIdRef.current) return;
+      setError(err instanceof Error ? err.message : 'Failed to fetch messages');
+    } finally {
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+      }
+    }
   };
 
   const handleDateSelect = (date: Date | undefined) => {
     setSelectedDate(date);
     setShowCalendar(false);
-    setMessages([]);
-    setHasMore(true);
-    lastTimestamp.current = undefined;
-    loadMessages(true);
+    if (hasSearched) {
+      setMessages([]);
+      setHasMore(true);
+      lastTimestamp.current = undefined;
+      loadMessages(true);
+    }
   };
 
   const clearDate = () => {
     setSelectedDate(undefined);
-    setMessages([]);
-    setHasMore(true);
-    lastTimestamp.current = undefined;
-    loadMessages(true);
+    setShowCalendar(false);
+    if (hasSearched) {
+      setMessages([]);
+      setHasMore(true);
+      lastTimestamp.current = undefined;
+      loadMessages(true);
+    }
   };
 
-  return (
-    <div className={`min-h-screen transition-colors duration-200 ${
-      theme === 'dark'
-        ? 'bg-black'
-        : 'bg-white'
-    }`}>
-      {/* Brutalist background elements */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none opacity-5">
-        <div className="absolute top-0 left-0 w-full h-1 bg-red-600" />
-        <div className="absolute bottom-0 right-0 w-1 h-full bg-red-600" />
-        <div className={`absolute top-1/3 right-1/4 w-64 h-64 border-2 border-red-600 rotate-12`} />
-      </div>
+  const isDark = theme === 'dark';
 
-      <div className="max-w-6xl mx-auto px-4 py-6 relative">
-        {/* Theme Toggle Button - Brutalist */}
-        <div className="flex justify-end mb-8">
+  return (
+    <div className={`min-h-screen transition-colors duration-200 ${isDark ? 'bg-zinc-950' : 'bg-zinc-50'}`}>
+      {/* Top bar */}
+      <div className={`border-b-2 ${isDark ? 'border-zinc-800 bg-zinc-950/80' : 'border-zinc-200 bg-white/80'} backdrop-blur-sm sticky top-0 z-30`}>
+        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-red-600 flex items-center justify-center">
+              <Zap size={16} className="text-white" />
+            </div>
+            <span
+              onMouseEnter={() => setHoverStates(prev => ({ ...prev, logo: true }))}
+              onMouseLeave={() => setHoverStates(prev => ({ ...prev, logo: false }))}
+              className={`font-mono font-bold text-sm uppercase tracking-wider ${isDark ? 'text-white' : 'text-black'}`}
+            >
+              <ScrambleText externalHover={hoverStates.logo}>SNAPSHOT EXPLORER</ScrambleText>
+            </span>
+          </div>
           <button
             onClick={toggleTheme}
-            onMouseEnter={() => setHoverStates(prev => ({ ...prev, themeToggle: true }))}
-            onMouseLeave={() => setHoverStates(prev => ({ ...prev, themeToggle: false }))}
-            className={`relative p-4 border-2 border-black transition-all duration-100 hover:translate-x-[2px] hover:translate-y-[2px] ${
-              theme === 'dark'
-                ? 'bg-red-600 text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none'
-                : 'bg-white text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none'
-            } font-mono font-bold uppercase text-xs tracking-wider`}
+            className={`p-2 border-2 transition-all duration-100 hover:-translate-y-0.5 ${
+              isDark
+                ? 'border-zinc-700 text-zinc-400 hover:text-white hover:border-white bg-zinc-900'
+                : 'border-zinc-300 text-zinc-600 hover:text-black hover:border-black bg-white'
+            }`}
             aria-label="Toggle theme"
           >
-            <ScrambleText externalHover={hoverStates.themeToggle}>{theme === 'dark' ? '[LIGHT]' : '[DARK]'}</ScrambleText>
+            {isDark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
         </div>
+      </div>
 
+      <div className="max-w-5xl mx-auto px-4 py-10 relative">
+        {/* Hero */}
         <div className="mb-10">
-          <div className="text-left mb-6">
-            <div 
-              onMouseEnter={() => setHoverStates(prev => ({ ...prev, header: true }))}
-              onMouseLeave={() => setHoverStates(prev => ({ ...prev, header: false }))}
-              className={`inline-block border-4 border-black p-6 mb-4 ${
-              theme === 'dark' ? 'bg-white' : 'bg-black'
-            } shadow-[4px_4px_0px_0px_rgba(255,0,0,1)]`}>
-              <h1 className={`text-4xl md:text-5xl font-black uppercase tracking-tighter leading-none ${
-                theme === 'dark' ? 'text-black' : 'text-white'
-              }`} style={{ fontFamily: 'Impact, Arial Black, sans-serif' }}>
-                <ScrambleText externalHover={hoverStates.header}>SNAPSHOT</ScrambleText><br/>
-                <ScrambleText externalHover={hoverStates.header}><span className="text-red-600">TIME</span>LINE</ScrambleText><br/>
-                <ScrambleText externalHover={hoverStates.header}>EXPLORER</ScrambleText>
-              </h1>
+          <h1
+            onMouseEnter={() => setHoverStates(prev => ({ ...prev, header: true }))}
+            onMouseLeave={() => setHoverStates(prev => ({ ...prev, header: false }))}
+            className={`text-5xl md:text-7xl font-black uppercase tracking-tighter leading-[0.85] mb-4 ${isDark ? 'text-white' : 'text-black'}`}
+            style={{ fontFamily: 'Impact, Arial Black, sans-serif' }}
+          >
+            <ScrambleText externalHover={hoverStates.header}>SNAPSHOT</ScrambleText><br/>
+            <span className="text-red-600"><ScrambleText externalHover={hoverStates.header}>TIMELINE</ScrambleText></span>
+          </h1>
+          <p className={`font-mono text-sm uppercase tracking-widest ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
+            Governance events explorer &mdash; proposals, settings, updates
+          </p>
+        </div>
+
+        {/* Search Form */}
+        <div className={`border-2 p-6 mb-8 transition-colors ${
+          isDark
+            ? 'bg-zinc-900 border-zinc-800'
+            : 'bg-white border-zinc-200'
+        }`}>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Mode tabs */}
+            <div className="flex gap-0">
+              <button
+                type="button"
+                onClick={() => {
+                  if (mode !== 'space') {
+                    setMode('space');
+                    setMessages([]);
+                    setHasMore(true);
+                    setHasSearched(false);
+                    lastTimestamp.current = undefined;
+                  }
+                }}
+                onMouseEnter={() => setHoverStates(prev => ({ ...prev, tabSpace: true }))}
+                onMouseLeave={() => setHoverStates(prev => ({ ...prev, tabSpace: false }))}
+                className={`px-4 py-2 font-mono font-bold text-xs uppercase border-2 transition-all duration-100 ${
+                  mode === 'space'
+                    ? 'bg-red-600 border-red-600 text-white'
+                    : isDark
+                      ? 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500'
+                      : 'bg-white border-zinc-300 text-zinc-500 hover:text-black hover:border-zinc-400'
+                }`}
+              >
+                <ScrambleText externalHover={hoverStates.tabSpace}>BY SPACE</ScrambleText>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (mode !== 'all') {
+                    setMode('all');
+                    setMessages([]);
+                    setHasMore(true);
+                    setHasSearched(false);
+                    lastTimestamp.current = undefined;
+                  }
+                }}
+                onMouseEnter={() => setHoverStates(prev => ({ ...prev, tabAll: true }))}
+                onMouseLeave={() => setHoverStates(prev => ({ ...prev, tabAll: false }))}
+                className={`px-4 py-2 font-mono font-bold text-xs uppercase border-2 border-l-0 transition-all duration-100 ${
+                  mode === 'all'
+                    ? 'bg-red-600 border-red-600 text-white'
+                    : isDark
+                      ? 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500'
+                      : 'bg-white border-zinc-300 text-zinc-500 hover:text-black hover:border-zinc-400'
+                }`}
+              >
+                <ScrambleText externalHover={hoverStates.tabAll}>ALL EVENTS</ScrambleText>
+              </button>
             </div>
-            <div className={`font-mono text-sm uppercase tracking-wide inline-block border-2 border-black px-4 py-2 ml-12 ${
-              theme === 'dark' ? 'bg-red-600 text-white' : 'bg-white text-black'
-            } shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]`}>
-              /// GOVERNANCE DATA FEED ///<br/>
-              &gt;&gt;&gt; PROPOSALS + SETTINGS + MORE
-            </div>
-          </div>
-          
-          
-          {/* Form Section with Big Border */}
-          <div className={`border-[8px] p-8 transition-colors duration-200 ${
-            theme === 'dark'
-              ? 'bg-black border-white shadow-[6px_6px_0px_0px_rgba(255,255,255,1)]'
-              : 'bg-white border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]'
-          }`}>
-          <div className={`border-[6px] border-black p-6 transition-colors duration-200 ${
-            theme === 'dark'
-              ? 'bg-black shadow-[4px_4px_0px_0px_rgba(255,0,0,1)]'
-              : 'bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'
-          }`}>
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              <div className="relative">
-                <div className={`font-mono text-xs uppercase mb-2 font-bold tracking-wider ${
-                  theme === 'dark' ? 'text-white' : 'text-black'
-                }`}>
-                  [{'{'}"SPACE_NAME"{'}'}] + [DATE_FILTER]
-                </div>
-                <div className="flex gap-2">
+
+            {/* Input row */}
+            <div className="flex gap-2">
+              {mode === 'space' && (
+                <div className="relative flex-1">
                   <input
+                    ref={inputRef}
                     type="text"
                     value={space}
-                    onChange={(e) => setSpace(e.target.value)}
-                    placeholder="thanku.eth"
-                    className={`flex-1 px-4 py-3 border-4 outline-none font-mono font-bold transition-all duration-100 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,1)] ${
-                      theme === 'dark'
-                        ? 'bg-black text-white placeholder-gray-600 border-white focus:bg-red-600 focus:text-white focus:border-red-600 focus:shadow-[4px_4px_0px_0px_rgba(255,0,0,1)]'
-                        : 'bg-white text-black placeholder-gray-400 border-black focus:bg-black focus:text-white focus:border-black focus:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'
+                    onChange={(e) => handleSpaceInputChange(e.target.value)}
+                    onFocus={() => {
+                      if (spaceSuggestions.length > 0) setShowSuggestions(true);
+                    }}
+                    placeholder="e.g. ens.eth, aave.eth, kleros.eth"
+                    className={`w-full px-4 py-3 border-2 outline-none font-mono text-sm transition-all duration-100 ${
+                      isDark
+                        ? 'bg-zinc-950 text-white placeholder-zinc-600 border-zinc-700 focus:border-red-600'
+                        : 'bg-zinc-50 text-black placeholder-zinc-400 border-zinc-300 focus:border-red-600'
                     }`}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowCalendar(!showCalendar)}
-                    className={`px-4 py-3 border-4 transition-all duration-100 font-mono font-bold shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none relative ${
-                      theme === 'dark'
-                        ? 'bg-black text-white border-white'
-                        : 'bg-white text-black border-black'
-                    }`}
-                    title="Select date filter"
-                  >
-                    <Calendar size={20} />
-                    {selectedDate && (
-                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-600 rounded-full border border-black"></span>
-                    )}
-                  </button>
+                  {loadingSuggestions && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <div className={`w-4 h-4 border-2 border-t-transparent rounded-full animate-spin ${
+                        isDark ? 'border-zinc-500' : 'border-zinc-400'
+                      }`} />
+                    </div>
+                  )}
+                  {showSuggestions && spaceSuggestions.length > 0 && (
+                    <div
+                      ref={suggestionsRef}
+                      className={`absolute left-0 right-0 top-full mt-1 border-2 z-50 max-h-80 overflow-y-auto shadow-lg ${
+                        isDark
+                          ? 'bg-zinc-900 border-zinc-700'
+                          : 'bg-white border-zinc-300'
+                      }`}
+                    >
+                      {spaceSuggestions.map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => handleSpaceSelect(s)}
+                          className={`w-full px-3 py-2.5 flex items-center gap-3 text-left font-mono text-sm transition-colors ${
+                            isDark
+                              ? 'hover:bg-zinc-800 text-white'
+                              : 'hover:bg-zinc-100 text-black'
+                          }`}
+                        >
+                          {s.avatar ? (
+                            <img
+                              src={formatAvatar(s.avatar)}
+                              alt=""
+                              className="w-7 h-7 rounded-full border border-zinc-600 flex-shrink-0 object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div className={`w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold ${
+                              isDark ? 'bg-zinc-700 text-zinc-400' : 'bg-zinc-200 text-zinc-500'
+                            }`}>
+                              {s.name?.charAt(0)?.toUpperCase() || '?'}
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="font-bold text-sm truncate">{s.name}</div>
+                            <div className={`text-xs truncate ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                              {s.id}
+                            </div>
+                          </div>
+                          <div className={`flex items-center gap-1 text-xs flex-shrink-0 ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                            <Users size={11} />
+                            {s.followersCount?.toLocaleString() || 0}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
+              )}
+              {mode === 'all' && (
+                <div className={`flex-1 px-4 py-3 border-2 border-dashed font-mono text-sm flex items-center gap-2 ${
+                  isDark
+                    ? 'bg-zinc-950 border-zinc-700 text-zinc-500'
+                    : 'bg-zinc-50 border-zinc-300 text-zinc-400'
+                }`}>
+                  <Globe size={14} />
+                  Showing events from all spaces
+                </div>
+              )}
+              <div className="relative">
+                <button
+                  ref={calendarBtnRef}
+                  type="button"
+                  onClick={() => setShowCalendar(!showCalendar)}
+                  className={`h-full px-3 border-2 transition-all duration-100 hover:-translate-y-0.5 relative ${
+                    isDark
+                      ? 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500'
+                      : 'bg-white border-zinc-300 text-zinc-500 hover:text-black hover:border-zinc-400'
+                  }`}
+                  title="Date filter"
+                >
+                  <Calendar size={16} />
+                  {selectedDate && (
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-600 rounded-full"></span>
+                  )}
+                </button>
                 {showCalendar && (
-                  <div ref={calendarRef} className={`absolute right-0 mt-2 border-4 border-black dark:border-white z-10 transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] ${
-                    theme === 'dark'
-                      ? 'bg-black [&_.rdp-day]:text-white [&_.rdp-caption]:text-white [&_.rdp-head_cell]:text-gray-400'
-                      : 'bg-white'
+                  <div ref={calendarRef} className={`absolute right-0 mt-2 border-2 z-40 shadow-lg ${
+                    isDark
+                      ? 'bg-zinc-900 border-zinc-700'
+                      : 'bg-white border-zinc-200'
                   }`}>
                     <DayPicker
                       mode="single"
                       selected={selectedDate}
                       onSelect={handleDateSelect}
-                      className="p-3 font-mono"
+                      className={`p-3 font-mono ${isDark ? '[&_.rdp-day]:text-white [&_.rdp-caption]:text-white [&_.rdp-head_cell]:text-zinc-500' : ''}`}
                     />
                     {selectedDate && (
                       <button
                         type="button"
                         onClick={clearDate}
-                        className={`w-full px-4 py-2 border-t-4 font-mono font-bold uppercase text-xs transition-all ${
-                          theme === 'dark'
-                            ? 'bg-red-600 text-white border-white hover:bg-white hover:text-red-600'
-                            : 'bg-black text-white border-black hover:bg-red-600'
-                        }`}
+                        className="w-full px-4 py-2 border-t-2 font-mono font-bold uppercase text-xs bg-red-600 text-white border-red-600 hover:bg-red-700 transition-colors"
                       >
-                        [CLEAR_DATE]
+                        Clear date
                       </button>
                     )}
                   </div>
                 )}
               </div>
-              {/* Event Type Filter Buttons */}
-              {messages.length > 0 && (
-                <div className="pt-4 border-t-4 border-black dark:border-white">
-                  <div className={`font-mono text-xs font-bold uppercase mb-3 tracking-wider ${
-                    theme === 'dark' ? 'text-white' : 'text-black'
-                  }`}>
-                    <ScrambleText>[FILTER_BY_TYPE]</ScrambleText>
-                  </div>
-                  <div className="flex flex-wrap gap-3">
-                    {[
-                      { type: 'proposal', label: 'PROPOSALS' },
-                      { type: 'settings', label: 'SETTINGS' },
-                      { type: 'delete-proposal', label: 'DELETED' },
-                      { type: 'update-proposal', label: 'UPDATED' }
-                    ].map(({ type, label }) => {
-                      const isSelected = selectedTypes.includes(type);
-                      return (
-                        <button
-                          key={type}
-                          type="button"
-                          onMouseEnter={() => setHoverStates(prev => ({ ...prev, [`filter-${type}`]: true }))}
-                          onMouseLeave={() => setHoverStates(prev => ({ ...prev, [`filter-${type}`]: false }))}
-                          onClick={() => {
-                            if (isSelected) {
-                              setSelectedTypes(selectedTypes.filter(t => t !== type));
-                            } else {
-                              setSelectedTypes([...selectedTypes, type]);
-                            }
-                          }}
-                          className={`px-4 py-2 border-2 font-mono font-bold uppercase text-xs shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] transition-all duration-100 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none ${
-                            isSelected
-                              ? theme === 'dark'
-                                ? 'bg-red-600 border-red-600 text-white'
-                                : 'bg-black border-black text-white'
-                              : theme === 'dark'
-                                ? 'bg-black border-white text-white'
-                                : 'bg-white border-black text-black'
-                          }`}
-                        >
-                          <ScrambleText externalHover={hoverStates[`filter-${type}`]}>{label}</ScrambleText>
-                        </button>
-                      );
-                    })}
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex gap-2">
+              {mode === 'space' ? (
+                <button
+                  type="submit"
+                  disabled={loading || !space.trim()}
+                  onMouseEnter={() => setHoverStates(prev => ({ ...prev, submit: true }))}
+                  onMouseLeave={() => setHoverStates(prev => ({ ...prev, submit: false }))}
+                  className="flex-1 px-6 py-3 bg-red-600 text-white border-2 border-red-600 font-mono font-bold uppercase text-sm tracking-wider transition-all duration-100 hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_rgba(185,28,28,1)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
+                  style={{ fontFamily: 'Impact, Arial Black, sans-serif' }}
+                >
+                  <ScrambleText externalHover={hoverStates.submit}>{loading ? 'LOADING...' : 'EXPLORE'}</ScrambleText>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleAllEvents}
+                  disabled={loading}
+                  onMouseEnter={() => setHoverStates(prev => ({ ...prev, submit: true }))}
+                  onMouseLeave={() => setHoverStates(prev => ({ ...prev, submit: false }))}
+                  className="flex-1 px-6 py-3 bg-red-600 text-white border-2 border-red-600 font-mono font-bold uppercase text-sm tracking-wider transition-all duration-100 hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_rgba(185,28,28,1)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
+                  style={{ fontFamily: 'Impact, Arial Black, sans-serif' }}
+                >
+                  <ScrambleText externalHover={hoverStates.submit}>{loading ? 'LOADING...' : 'SHOW ALL EVENTS'}</ScrambleText>
+                </button>
+              )}
+            </div>
+          </form>
+
+          {/* Filter pills */}
+          {messages.length > 0 && (
+            <div className={`mt-4 pt-4 border-t ${isDark ? 'border-zinc-800' : 'border-zinc-200'}`}>
+              <div className={`font-mono text-[10px] font-bold uppercase mb-2 tracking-widest ${isDark ? 'text-zinc-600' : 'text-zinc-400'}`}>
+                Filter by type
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { type: 'proposal', label: 'Proposals', color: 'bg-emerald-600' },
+                  { type: 'settings', label: 'Settings', color: 'bg-blue-600' },
+                  { type: 'delete-proposal', label: 'Deleted', color: 'bg-red-600' },
+                  { type: 'update-proposal', label: 'Updated', color: 'bg-amber-600' }
+                ].map(({ type, label, color }) => {
+                  const isSelected = selectedTypes.includes(type);
+                  return (
                     <button
+                      key={type}
                       type="button"
-                      onMouseEnter={() => setHoverStates(prev => ({ ...prev, filterToggle: true }))}
-                      onMouseLeave={() => setHoverStates(prev => ({ ...prev, filterToggle: false }))}
+                      onMouseEnter={() => setHoverStates(prev => ({ ...prev, [`filter-${type}`]: true }))}
+                      onMouseLeave={() => setHoverStates(prev => ({ ...prev, [`filter-${type}`]: false }))}
                       onClick={() => {
-                        const allTypes = ['proposal', 'settings', 'delete-proposal', 'update-proposal'];
-                        setSelectedTypes(selectedTypes.length === allTypes.length ? [] : allTypes);
+                        if (isSelected) {
+                          setSelectedTypes(selectedTypes.filter(t => t !== type));
+                        } else {
+                          setSelectedTypes([...selectedTypes, type]);
+                        }
                       }}
-                      className={`px-4 py-2 border-2 font-mono font-bold uppercase text-xs shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] transition-all duration-100 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none ${
-                        theme === 'dark'
-                          ? 'bg-black border-white text-white'
-                          : 'bg-white border-black text-black'
+                      className={`px-3 py-1.5 font-mono font-bold uppercase text-[11px] border-2 transition-all duration-100 hover:-translate-y-0.5 ${
+                        isSelected
+                          ? `${color} border-transparent text-white`
+                          : isDark
+                            ? 'bg-transparent border-zinc-700 text-zinc-500 hover:border-zinc-500 hover:text-zinc-300'
+                            : 'bg-transparent border-zinc-300 text-zinc-400 hover:border-zinc-400 hover:text-zinc-600'
                       }`}
                     >
-                      <ScrambleText externalHover={hoverStates.filterToggle}>{selectedTypes.length === 4 ? '[CLEAR_ALL]' : '[SELECT_ALL]'}</ScrambleText>
+                      <ScrambleText externalHover={hoverStates[`filter-${type}`]}>{label}</ScrambleText>
                     </button>
-                  </div>
-                </div>
-              )}
-                            <button
-                type="submit"
-                disabled={loading}
-                onMouseEnter={() => setHoverStates(prev => ({ ...prev, submit: true }))}
-                onMouseLeave={() => setHoverStates(prev => ({ ...prev, submit: false }))}
-                className={`px-8 py-4 border-4 border-black transition-all duration-100 font-black uppercase text-sm tracking-wider disabled:opacity-50 disabled:cursor-not-allowed hover:translate-x-[4px] hover:translate-y-[4px] ${
-                  theme === 'dark'
-                    ? 'bg-red-600 text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none'
-                    : 'bg-black text-white shadow-[4px_4px_0px_0px_rgba(255,0,0,1)] hover:shadow-none'
-                }`}
-                style={{ fontFamily: 'Impact, Arial Black, sans-serif' }}
-              >
-                <ScrambleText externalHover={hoverStates.submit}>{loading ? '>>> LOADING...' : '>> EXPLORE >>'}</ScrambleText>
-              </button>
-            </form>
-            
-            {error && (
-              <div className={`mt-4 p-4 border-4 border-black font-mono transition-colors ${
-                theme === 'dark'
-                  ? 'bg-red-600 text-white'
-                  : 'bg-white text-black'
-              } shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]`}>
-                <strong className="uppercase">[!ERROR!]</strong> {error}
+                  );
+                })}
+                <button
+                  type="button"
+                  onMouseEnter={() => setHoverStates(prev => ({ ...prev, filterToggle: true }))}
+                  onMouseLeave={() => setHoverStates(prev => ({ ...prev, filterToggle: false }))}
+                  onClick={() => {
+                    const allTypes = ['proposal', 'settings', 'delete-proposal', 'update-proposal'];
+                    setSelectedTypes(selectedTypes.length === allTypes.length ? [] : allTypes);
+                  }}
+                  className={`px-3 py-1.5 font-mono text-[11px] uppercase border-2 border-dashed transition-all duration-100 hover:-translate-y-0.5 ${
+                    isDark
+                      ? 'border-zinc-700 text-zinc-500 hover:border-zinc-400 hover:text-zinc-300'
+                      : 'border-zinc-300 text-zinc-400 hover:border-zinc-400 hover:text-zinc-600'
+                  }`}
+                >
+                  <ScrambleText externalHover={hoverStates.filterToggle}>
+                    {selectedTypes.length === 4 ? 'Clear all' : 'Select all'}
+                  </ScrambleText>
+                </button>
               </div>
-            )}
-          </div>
-          </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="mt-4 p-3 bg-red-600/10 border-2 border-red-600 text-red-600 font-mono text-sm">
+              <strong className="uppercase">Error:</strong> {error}
+            </div>
+          )}
         </div>
 
-        <Timeline messages={messages.filter(m => selectedTypes.includes(m.type))} loading={loading} space={space} theme={theme} />
+        {/* Timeline */}
+        <Timeline
+          messages={messages.filter(m => selectedTypes.includes(m.type))}
+          loading={loading}
+          space={mode === 'all' ? '' : space}
+          theme={theme}
+          showSpaceBadge={mode === 'all'}
+        />
         
         <div ref={observerTarget} className="h-4" />
         
         {!hasMore && messages.length > 0 && (
-          <div className={`text-center py-6 px-4 border-4 border-black transition-colors ${
-            theme === 'dark'
-              ? 'bg-red-600 text-white'
-              : 'bg-black text-white'
-          } shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]`}>
-            <p className="font-mono font-bold uppercase tracking-wider">/// END OF TIMELINE DATA ///</p>
+          <div className={`text-center py-4 font-mono text-xs uppercase tracking-widest ${isDark ? 'text-zinc-600' : 'text-zinc-400'}`}>
+            &mdash; End of timeline &mdash;
           </div>
         )}
       </div>

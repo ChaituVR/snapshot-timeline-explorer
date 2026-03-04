@@ -1,71 +1,53 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
-  /* Brutalist harsh transitions */
   * {
-    @apply transition-all duration-100;
+    @apply transition-colors duration-150;
   }
-  
-  /* Brutalist scrollbar */
+
+  body {
+    @apply font-mono antialiased;
+  }
+
+  /* Scrollbar */
   ::-webkit-scrollbar {
-    width: 12px;
+    width: 8px;
   }
-  
   ::-webkit-scrollbar-track {
-    @apply bg-white dark:bg-black border-2 border-black dark:border-white;
+    @apply bg-zinc-100 dark:bg-zinc-900;
   }
-  
   ::-webkit-scrollbar-thumb {
-    @apply bg-black dark:bg-white border-2 border-black dark:border-white;
+    @apply bg-zinc-300 dark:bg-zinc-700;
   }
-  
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-red-600 border-red-600;
+    @apply bg-red-600;
   }
-  
-  /* Brutalist calendar styles */
-  .dark .rdp {
-    --rdp-cell-size: 40px;
-    --rdp-accent-color: #dc2626;
-    --rdp-background-color: #000000;
-  }
-  
-  .rdp {
-    --rdp-cell-size: 40px;
-    --rdp-accent-color: #000000;
-    --rdp-background-color: #ffffff;
-  }
-  
-  .rdp-day_selected {
-    @apply bg-red-600 text-white border-2 border-black dark:border-white;
-  }
-  
-  .rdp-day:hover:not(.rdp-day_selected) {
-    @apply bg-black dark:bg-white text-white dark:text-black border-2 border-black dark:border-white;
-  }
-  
-  .rdp-head_cell {
-    @apply text-black dark:text-white font-mono font-bold uppercase;
-  }
-  
-  .rdp-caption {
-    @apply text-black dark:text-white font-mono font-bold uppercase;
-  }
-  
-  .rdp-day {
-    @apply font-mono font-bold;
-  }
-  
-  /* Brutalist selection colors */
+
+  /* Selection */
   ::selection {
     @apply bg-red-600 text-white;
   }
-  
-  /* Brutalist body */
-  body {
-    @apply font-mono;
+
+  /* react-day-picker v9 calendar theming */
+  .rdp-root {
+    --rdp-accent-color: #dc2626;
+    --rdp-accent-background-color: #dc2626;
+    --rdp-selected-border: 2px solid #dc2626;
+    font-family: ui-monospace, monospace;
+    font-size: 0.875rem;
+  }
+  .dark .rdp-root {
+    --rdp-background-color: #27272a;
+    color: #f4f4f5;
+  }
+  .rdp-day_button:hover {
+    @apply bg-zinc-200 dark:bg-zinc-700;
+  }
+  .rdp-weekday {
+    @apply text-zinc-500 font-mono font-bold uppercase text-xs;
+  }
+  .rdp-month_caption {
+    @apply text-zinc-900 dark:text-zinc-100 font-mono font-bold uppercase text-sm;
   }
 }
-

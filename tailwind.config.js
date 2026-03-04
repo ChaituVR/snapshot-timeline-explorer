@@ -1,9 +1,3 @@
-/** @type {import('tailwindcss').Config} */
-export default {
-  darkMode: 'class',
-  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
-  theme: {
-    extend: {},
-  },
-  plugins: [],
-};
+// Tailwind CSS v4 — configuration is now in src/index.css via @theme
+// Content scanning and dark mode variant are handled automatically by @tailwindcss/vite
+export default {};

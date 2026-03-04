@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, GitCompare, ArrowRight, Columns, List } from 'lucide-react';
-import * as jsondiffpatch from 'jsondiffpatch';
+import { AlertCircle, GitCompare, Copy, Check } from 'lucide-react';
+import Editor, { DiffEditor } from '@monaco-editor/react';
 import { fetchPreviousSettingsUpdate } from '../api';
 import type { SnapshotMessage } from '../types';
-import { CopyButton } from './CopyButton';
 
 interface SettingsDiffProps {
   currentMessage: SnapshotMessage;
@@ -11,11 +10,13 @@ interface SettingsDiffProps {
 }
 
 export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, space }) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [currentSettings, setCurrentSettings] = useState<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [previousSettings, setPreviousSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [diff, setDiff] = useState<any>(null);
+  const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchSettingsData = async () => {
@@ -23,37 +24,23 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
         setLoading(true);
         setError(null);
 
-        // Fetch current settings
         const currentResponse = await fetch(`https://4everland.io/ipfs/${currentMessage.ipfs}`);
-        if (!currentResponse.ok) {
-          throw new Error('Failed to fetch current settings');
-        }
+        if (!currentResponse.ok) throw new Error('Failed to fetch current settings');
         const currentData = await currentResponse.json();
         const currentSettingsData = JSON.parse(currentData.data.message.settings);
         setCurrentSettings(currentSettingsData);
 
-        // Fetch previous settings update
         const previousResponse = await fetchPreviousSettingsUpdate(space, currentMessage.timestamp);
-        
+
         if (previousResponse.messages.length === 0) {
-          // No previous settings found
           setPreviousSettings(null);
-          setDiff(null);
         } else {
           const previousMessage = previousResponse.messages[0];
           const previousIPFSResponse = await fetch(`https://4everland.io/ipfs/${previousMessage.ipfs}`);
-          
-          if (!previousIPFSResponse.ok) {
-            throw new Error('Failed to fetch previous settings');
-          }
-          
+          if (!previousIPFSResponse.ok) throw new Error('Failed to fetch previous settings');
           const previousData = await previousIPFSResponse.json();
           const previousSettingsData = JSON.parse(previousData.data.message.settings);
           setPreviousSettings(previousSettingsData);
-
-          // Generate diff
-          const delta = jsondiffpatch.diff(previousSettingsData, currentSettingsData);
-          setDiff(delta);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load settings comparison');
@@ -65,231 +52,145 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
     fetchSettingsData();
   }, [currentMessage, space]);
 
+  const handleCopy = async (text: string, type: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(type);
+      setTimeout(() => setCopied(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  const editorOptions = {
+    readOnly: true,
+    minimap: { enabled: false },
+    fontSize: 13,
+    fontFamily: "'Fira Code', 'Cascadia Code', 'JetBrains Mono', Menlo, Monaco, 'Courier New', monospace",
+    fontLigatures: true,
+    scrollBeyondLastLine: false,
+    wordWrap: 'on' as const,
+    automaticLayout: true,
+    padding: { top: 12, bottom: 12 },
+    smoothScrolling: true,
+    renderSideBySide: true,
+    folding: true,
+    bracketPairColorization: { enabled: true },
+    guides: { bracketPairs: true, indentation: true },
+    scrollbar: { verticalScrollbarSize: 10, horizontalScrollbarSize: 10 },
+  };
+
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-3 border-blue-200 border-t-blue-600 mb-4"></div>
-        <p className="text-gray-600">Loading settings comparison...</p>
+      <div className="flex flex-col items-center justify-center py-16">
+        <div className="animate-spin rounded-full h-8 w-8 border-2 border-zinc-300 border-t-blue-600 mb-4"></div>
+        <p className="text-zinc-500 font-mono text-sm uppercase tracking-wider">Loading settings comparison...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center py-12">
-        <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
-        <div className="text-center">
-          <h3 className="text-lg font-semibold text-red-700 mb-2">Failed to Load Comparison</h3>
-          <p className="text-red-600">{error}</p>
-        </div>
+      <div className="flex flex-col items-center justify-center py-16">
+        <AlertCircle className="w-10 h-10 text-red-500 mb-4" />
+        <h3 className="text-base font-bold text-red-700 mb-1 font-mono uppercase">Failed to Load</h3>
+        <p className="text-red-600 text-sm font-mono">{error}</p>
       </div>
     );
   }
 
+  const currentJson = JSON.stringify(currentSettings, null, 2);
+  const previousJson = previousSettings ? JSON.stringify(previousSettings, null, 2) : '';
+
+  // No previous settings - show single editor
   if (!previousSettings) {
     return (
-      <div className="text-center py-8">
-        <GitCompare className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-700 mb-2">No Previous Settings Found</h3>
-        <p className="text-gray-500">This appears to be the first settings update for this space.</p>
-        
-        <div className="mt-6">
-          <h4 className="text-md font-semibold text-gray-700 mb-3">Current Settings:</h4>
-          <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-            <pre className="text-sm overflow-auto max-h-[40vh] whitespace-pre-wrap break-words">
-              {JSON.stringify(currentSettings, null, 2)}
-            </pre>
+      <div className="max-w-none">
+        <div className="flex items-center justify-between bg-[#1e1e1e] px-4 py-2 rounded-t-lg border-b border-[#333]">
+          <div className="flex items-center gap-2">
+            <GitCompare className="w-4 h-4 text-[#75beff]" />
+            <span className="text-[#cccccc] font-mono text-sm">current-settings.json</span>
+            <span className="text-[#858585] font-mono text-xs ml-2">First Settings Update</span>
           </div>
+          <button
+            onClick={() => handleCopy(currentJson, 'json')}
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono text-[#cccccc] hover:bg-[#2a2d2e] rounded transition-colors"
+          >
+            {copied === 'json' ? <Check size={12} className="text-green-400" /> : <Copy size={12} />}
+            <span>{copied === 'json' ? 'Copied!' : 'Copy'}</span>
+          </button>
+        </div>
+        <div className="rounded-b-lg overflow-hidden border border-[#333] border-t-0">
+          <Editor
+            height="60vh"
+            defaultLanguage="json"
+            value={currentJson}
+            theme="vs-dark"
+            options={editorOptions}
+            loading={
+              <div className="flex items-center justify-center h-[60vh] bg-[#1e1e1e]">
+                <div className="animate-spin rounded-full h-6 w-6 border-2 border-zinc-600 border-t-[#75beff]"></div>
+              </div>
+            }
+          />
         </div>
       </div>
     );
   }
 
-  const renderDiffValue = (key: string, value: any) => {
-    console.log(`Diff for ${key}:`, value);
-    
-    if (Array.isArray(value)) {
-      if (value.length === 1) {
-        // Single element array means addition
-        return (
-          <div className="mb-4">
-            <div className="font-medium text-green-700 mb-2">➕ {key} (Added)</div>
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-              <pre className="text-sm text-green-800 whitespace-pre-wrap break-words">
-                {JSON.stringify(value[0], null, 2)}
-              </pre>
-            </div>
-          </div>
-        );
-      } else if (value.length === 2 && value[0] === undefined) {
-        // Added
-        return (
-          <div className="mb-4">
-            <div className="font-medium text-green-700 mb-2">➕ {key} (Added)</div>
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-              <pre className="text-sm text-green-800 whitespace-pre-wrap break-words">
-                {JSON.stringify(value[1], null, 2)}
-              </pre>
-            </div>
-          </div>
-        );
-      } else if (value.length === 2 && value[1] === undefined) {
-        // Removed
-        return (
-          <div className="mb-4">
-            <div className="font-medium text-red-700 mb-2">🗑️ {key} (Removed)</div>
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <pre className="text-sm text-red-800 whitespace-pre-wrap break-words">
-                {JSON.stringify(value[0], null, 2)}
-              </pre>
-            </div>
-          </div>
-        );
-      } else if (value.length === 2 && value[0] !== undefined && value[1] !== undefined) {
-        // Modified
-        return (
-          <div className="mb-4">
-            <div className="font-medium text-blue-700 mb-2">✏️ {key} (Modified)</div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <div className="text-sm font-medium text-red-600 mb-1">Before:</div>
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                  <pre className="text-sm text-red-800 whitespace-pre-wrap break-words">
-                    {JSON.stringify(value[0], null, 2)}
-                  </pre>
-                </div>
-              </div>
-              <div>
-                <div className="text-sm font-medium text-green-600 mb-1">After:</div>
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                  <pre className="text-sm text-green-800 whitespace-pre-wrap break-words">
-                    {JSON.stringify(value[1], null, 2)}
-                  </pre>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      } else if (value.length === 3 && value[2] === 0) {
-        // Array item deletion (jsondiffpatch format: [oldValue, 0, 0])
-        return (
-          <div className="mb-4">
-            <div className="font-medium text-red-700 mb-2">🗑️ {key} (Removed)</div>
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <pre className="text-sm text-red-800 whitespace-pre-wrap break-words">
-                {JSON.stringify(value[0], null, 2)}
-              </pre>
-            </div>
-          </div>
-        );
-      }
-    }
-    return null;
-  };
-
-  const renderNestedDiff = (obj: any, path: string = '') => {
-    return Object.keys(obj).map(key => {
-      const fullPath = path ? `${path}.${key}` : key;
-      const value = obj[key];
-      
-      if (Array.isArray(value)) {
-        return renderDiffValue(fullPath, value);
-      } else if (typeof value === 'object' && value !== null) {
-        return (
-          <div key={fullPath} className="mb-4">
-            <div className="font-medium text-gray-700 mb-2">📁 {fullPath}</div>
-            <div className="ml-4 border-l-2 border-gray-200 pl-4">
-              {renderNestedDiff(value, fullPath)}
-            </div>
-          </div>
-        );
-      }
-      return null;
-    });
-  };
-
+  // Has previous settings - show diff editor
   return (
     <div className="max-w-none">
-      <div className="flex items-center gap-2 mb-6 pb-4 border-b border-gray-200">
-        <GitCompare className="w-5 h-5 text-gray-600" />
-        <h3 className="text-lg font-semibold text-gray-800">Settings Comparison</h3>
-        <div className="ml-auto">
-          <CopyButton 
-            text={diff ? JSON.stringify(diff, null, 2) : 'No changes detected'} 
-            variant="outline">
-            Copy Diff
-          </CopyButton>
+      <div className="flex items-center justify-between bg-[#1e1e1e] px-4 py-2 rounded-t-lg border-b border-[#333]">
+        <div className="flex items-center gap-3">
+          <GitCompare className="w-4 h-4 text-[#75beff]" />
+          <span className="text-[#cccccc] font-mono text-sm">Settings Comparison</span>
+          <span className="text-[#858585] font-mono text-xs">{space}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => handleCopy(previousJson, 'prev')}
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono text-[#cccccc] hover:bg-[#2a2d2e] rounded transition-colors"
+          >
+            {copied === 'prev' ? <Check size={12} className="text-green-400" /> : <Copy size={12} />}
+            <span>{copied === 'prev' ? 'Copied!' : 'Previous'}</span>
+          </button>
+          <button
+            onClick={() => handleCopy(currentJson, 'curr')}
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono text-[#cccccc] hover:bg-[#2a2d2e] rounded transition-colors"
+          >
+            {copied === 'curr' ? <Check size={12} className="text-green-400" /> : <Copy size={12} />}
+            <span>{copied === 'curr' ? 'Copied!' : 'Current'}</span>
+          </button>
         </div>
       </div>
 
-      {diff && Object.keys(diff).length > 0 ? (
-        <div className="space-y-4">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <h4 className="font-semibold text-blue-800 mb-2">Changes Detected</h4>
-            <p className="text-blue-700 text-sm">
-              The following settings were modified between the previous and current update:
-            </p>
-            <div className="mt-3">
-              <CopyButton 
-                text={JSON.stringify(diff, null, 2)} 
-                variant="outline">
-                Copy Changes
-              </CopyButton>
-            </div>
-          </div>
-          
-          {renderNestedDiff(diff)}
+      {/* Diff labels */}
+      <div className="flex bg-[#252526] border-x border-[#333]">
+        <div className="flex-1 px-4 py-1.5 text-[11px] font-mono text-red-400 border-r border-[#333] flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-red-500 shrink-0"></span> Previous Settings
         </div>
-      ) : (
-        <div className="text-center py-8">
-          <div className="bg-gray-50 rounded-lg p-6">
-            <h4 className="text-lg font-semibold text-gray-700 mb-2">No Changes Detected</h4>
-            <p className="text-gray-500">The settings appear to be identical to the previous update.</p>
-          </div>
+        <div className="flex-1 px-4 py-1.5 text-[11px] font-mono text-green-400 flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-green-500 shrink-0"></span> Current Settings
         </div>
-      )}
+      </div>
 
-      <div className="mt-8 pt-6 border-t border-gray-200">
-        <h4 className="text-md font-semibold text-gray-700 mb-4">Raw Settings Data</h4>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-3 h-3 bg-red-400 rounded-full"></div>
-              <span className="font-medium text-gray-700">Previous Settings</span>
+      <div className="rounded-b-lg overflow-hidden border border-[#333] border-t-0">
+        <DiffEditor
+          height="60vh"
+          language="json"
+          original={previousJson}
+          modified={currentJson}
+          theme="vs-dark"
+          keepCurrentOriginalModel={true}
+          keepCurrentModifiedModel={true}
+          options={editorOptions}
+          loading={
+            <div className="flex items-center justify-center h-[60vh] bg-[#1e1e1e]">
+              <div className="animate-spin rounded-full h-6 w-6 border-2 border-zinc-600 border-t-[#75beff]"></div>
             </div>
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-              <div className="flex justify-end mb-2">
-                <CopyButton 
-                  text={JSON.stringify(previousSettings, null, 2)} 
-                  variant="outline">
-                  Copy Previous
-                </CopyButton>
-              </div>
-              <pre className="text-sm overflow-auto max-h-[40vh] whitespace-pre-wrap break-words">
-                {JSON.stringify(previousSettings, null, 2)}
-              </pre>
-            </div>
-          </div>
-          
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-              <span className="font-medium text-gray-700">Current Settings</span>
-            </div>
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-              <div className="flex justify-end mb-2">
-                <CopyButton 
-                  text={JSON.stringify(currentSettings, null, 2)} 
-                  variant="outline">
-                  Copy Current
-                </CopyButton>
-              </div>
-              <pre className="text-sm overflow-auto max-h-[40vh] whitespace-pre-wrap break-words">
-                {JSON.stringify(currentSettings, null, 2)}
-              </pre>
-            </div>
-          </div>
-        </div>
+          }
+        />
       </div>
     </div>
   );
