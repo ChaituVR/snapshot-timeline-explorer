@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AlertCircle, GitCompare, Copy, Check } from 'lucide-react';
 import Editor, { DiffEditor } from '@monaco-editor/react';
 import { fetchPreviousSettingsUpdate } from '../api';
+import { IPFS_GATEWAY, EDITOR_OPTIONS, DIFF_EDITOR_OPTIONS } from '../constants';
 import type { SnapshotMessage } from '../types';
 
 interface SettingsDiffProps {
@@ -24,7 +25,7 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
         setLoading(true);
         setError(null);
 
-        const currentResponse = await fetch(`https://4everland.io/ipfs/${currentMessage.ipfs}`);
+        const currentResponse = await fetch(`${IPFS_GATEWAY}/${currentMessage.ipfs}`);
         if (!currentResponse.ok) throw new Error('Failed to fetch current settings');
         const currentData = await currentResponse.json();
         const currentSettingsData = JSON.parse(currentData.data.message.settings);
@@ -36,7 +37,7 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
           setPreviousSettings(null);
         } else {
           const previousMessage = previousResponse.messages[0];
-          const previousIPFSResponse = await fetch(`https://4everland.io/ipfs/${previousMessage.ipfs}`);
+          const previousIPFSResponse = await fetch(`${IPFS_GATEWAY}/${previousMessage.ipfs}`);
           if (!previousIPFSResponse.ok) throw new Error('Failed to fetch previous settings');
           const previousData = await previousIPFSResponse.json();
           const previousSettingsData = JSON.parse(previousData.data.message.settings);
@@ -62,24 +63,6 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
     }
   };
 
-  const editorOptions = {
-    readOnly: true,
-    minimap: { enabled: false },
-    fontSize: 13,
-    fontFamily: "'Fira Code', 'Cascadia Code', 'JetBrains Mono', Menlo, Monaco, 'Courier New', monospace",
-    fontLigatures: true,
-    scrollBeyondLastLine: false,
-    wordWrap: 'on' as const,
-    automaticLayout: true,
-    padding: { top: 12, bottom: 12 },
-    smoothScrolling: true,
-    renderSideBySide: true,
-    folding: true,
-    bracketPairColorization: { enabled: true },
-    guides: { bracketPairs: true, indentation: true },
-    scrollbar: { verticalScrollbarSize: 10, horizontalScrollbarSize: 10 },
-  };
-
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
@@ -101,6 +84,12 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
 
   const currentJson = JSON.stringify(currentSettings, null, 2);
   const previousJson = previousSettings ? JSON.stringify(previousSettings, null, 2) : '';
+
+  const editorLoading = (
+    <div className="flex items-center justify-center h-[60vh] bg-[#1e1e1e]">
+      <div className="animate-spin rounded-full h-6 w-6 border-2 border-zinc-600 border-t-[#75beff]"></div>
+    </div>
+  );
 
   // No previous settings - show single editor
   if (!previousSettings) {
@@ -126,12 +115,8 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
             defaultLanguage="json"
             value={currentJson}
             theme="vs-dark"
-            options={editorOptions}
-            loading={
-              <div className="flex items-center justify-center h-[60vh] bg-[#1e1e1e]">
-                <div className="animate-spin rounded-full h-6 w-6 border-2 border-zinc-600 border-t-[#75beff]"></div>
-              </div>
-            }
+            options={EDITOR_OPTIONS}
+            loading={editorLoading}
           />
         </div>
       </div>
@@ -184,12 +169,8 @@ export const SettingsDiff: React.FC<SettingsDiffProps> = ({ currentMessage, spac
           theme="vs-dark"
           keepCurrentOriginalModel={true}
           keepCurrentModifiedModel={true}
-          options={editorOptions}
-          loading={
-            <div className="flex items-center justify-center h-[60vh] bg-[#1e1e1e]">
-              <div className="animate-spin rounded-full h-6 w-6 border-2 border-zinc-600 border-t-[#75beff]"></div>
-            </div>
-          }
+          options={DIFF_EDITOR_OPTIONS}
+          loading={editorLoading}
         />
       </div>
     </div>

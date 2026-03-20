@@ -1,11 +1,31 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Calendar, Moon, Sun, Globe, Zap, Users } from 'lucide-react';
+import { Calendar, Moon, Sun, Globe, Zap, Users, Link, Check } from 'lucide-react';
 import { DayPicker } from 'react-day-picker';
 import { Timeline } from './components/Timeline';
 import { ScrambleText } from './components/ScrambleText';
 import { fetchMessages, fetchAllMessages, searchSpaces } from './api';
+import { EVENT_TYPES } from './constants';
 import type { SnapshotMessage, SpaceResult } from './types';
 import 'react-day-picker/style.css';
+
+const parseHashToState = (): { mode: 'space' | 'all'; space: string } | null => {
+  const hash = window.location.hash;
+  if (hash.startsWith('#/s:')) {
+    return { mode: 'space', space: hash.slice(4).replace(/\/$/, '') };
+  }
+  if (hash === '#/explore') {
+    return { mode: 'all', space: '' };
+  }
+  return null;
+};
+
+const extractSpaceFromInput = (input: string): string => {
+  const match = input.match(/snapshot\.(?:box|org)\/#\/s:([^/?\s]+)/);
+  if (match) return match[1];
+  const orgMatch = input.match(/snapshot\.org\/#\/([^/?\s]+)/);
+  if (orgMatch) return orgMatch[1];
+  return input;
+};
 
 function App() {
   const [space, setSpace] = useState('');
@@ -16,14 +36,16 @@ function App() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
-  const [selectedTypes, setSelectedTypes] = useState<string[]>(['proposal', 'settings', 'delete-proposal', 'update-proposal']);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([...EVENT_TYPES]);
   const [hoverStates, setHoverStates] = useState<Record<string, boolean>>({});
   const [mode, setMode] = useState<'space' | 'all'>('space');
   const [hasSearched, setHasSearched] = useState(false);
   const [spaceSuggestions, setSpaceSuggestions] = useState<SpaceResult[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
-  
+  const [shareCopied, setShareCopied] = useState(false);
+  const [pendingAutoLoad, setPendingAutoLoad] = useState(false);
+
   const observerTarget = useRef<HTMLDivElement>(null);
   const lastTimestamp = useRef<number | undefined>(undefined);
   const calendarRef = useRef<HTMLDivElement>(null);
@@ -32,6 +54,21 @@ function App() {
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const isInternalHashUpdateRef = useRef(false);
+
+  const resetTimeline = useCallback((opts?: { keepSearch?: boolean; clearDate?: boolean }) => {
+    setMessages([]);
+    setHasMore(true);
+    lastTimestamp.current = undefined;
+    setError(null);
+    if (!opts?.keepSearch) setHasSearched(false);
+    if (opts?.clearDate) setSelectedDate(undefined);
+  }, []);
+
+  const setHash = useCallback((hash: string) => {
+    isInternalHashUpdateRef.current = true;
+    window.location.hash = hash;
+  }, []);
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
@@ -41,8 +78,37 @@ function App() {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
 
+  // Init from URL hash on mount + listen to back/forward navigation
+  useEffect(() => {
+    const parsed = parseHashToState();
+    if (parsed) {
+      setMode(parsed.mode);
+      setSpace(parsed.space);
+      setHasSearched(true);
+      setHasMore(true);
+      setPendingAutoLoad(true);
+    }
+    const handleHashChange = () => {
+      if (isInternalHashUpdateRef.current) {
+        isInternalHashUpdateRef.current = false;
+        return;
+      }
+      const p = parseHashToState();
+      if (p) {
+        setMode(p.mode);
+        setSpace(p.space);
+        resetTimeline({ keepSearch: true });
+        setHasSearched(true);
+        setPendingAutoLoad(true);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [resetTimeline]);
+
   // Close calendar on outside click
   useEffect(() => {
+    if (!showCalendar) return;
     const handleClickOutside = (event: MouseEvent) => {
       if (
         calendarRef.current && !calendarRef.current.contains(event.target as Node) &&
@@ -51,14 +117,13 @@ function App() {
         setShowCalendar(false);
       }
     };
-    if (showCalendar) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showCalendar]);
 
   // Close suggestions on outside click
   useEffect(() => {
+    if (!showSuggestions) return;
     const handleClickOutside = (event: MouseEvent) => {
       if (
         suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node) &&
@@ -67,19 +132,18 @@ function App() {
         setShowSuggestions(false);
       }
     };
-    if (showSuggestions) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showSuggestions]);
 
   // Debounced space search
   const handleSpaceInputChange = useCallback((value: string) => {
-    setSpace(value);
+    const extracted = value.includes('snapshot.') ? extractSpaceFromInput(value) : value;
+    setSpace(extracted);
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
     }
-    if (value.trim().length < 2) {
+    if (extracted.trim().length < 2) {
       setSpaceSuggestions([]);
       setShowSuggestions(false);
       return;
@@ -87,7 +151,7 @@ function App() {
     setLoadingSuggestions(true);
     searchTimeoutRef.current = setTimeout(async () => {
       try {
-        const result = await searchSpaces(value.trim());
+        const result = await searchSpaces(extracted.trim());
         setSpaceSuggestions(result.ranking.items);
         setShowSuggestions(result.ranking.items.length > 0);
       } catch {
@@ -117,30 +181,26 @@ function App() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const timestamp = selectedDate ? Math.floor(selectedDate.getTime() / 1000) : undefined;
       const timestampCursor = isInitial ? timestamp : lastTimestamp.current;
-      
-      let response;
-      if (mode === 'all') {
-        response = await fetchAllMessages(10, 0, timestampCursor);
-      } else {
-        response = await fetchMessages(space, 10, 0, timestampCursor);
-      }
-      
-      // Ignore stale responses
+
+      const response = mode === 'all'
+        ? await fetchAllMessages(10, 0, timestampCursor)
+        : await fetchMessages(space, 10, 0, timestampCursor);
+
       if (requestId !== requestIdRef.current) return;
-      
+
       const newMessages = response.messages;
-      
+
       if (newMessages.length < 10) {
         setHasMore(false);
       }
-      
+
       if (newMessages.length > 0) {
         lastTimestamp.current = newMessages[newMessages.length - 1].timestamp;
       }
-      
+
       setMessages(prev => isInitial ? newMessages : [...prev, ...newMessages]);
     } catch (err) {
       if (requestId !== requestIdRef.current) return;
@@ -151,6 +211,13 @@ function App() {
       }
     }
   }, [space, selectedDate, mode]);
+
+  // Auto-load after URL-driven state init
+  useEffect(() => {
+    if (!pendingAutoLoad) return;
+    setPendingAutoLoad(false);
+    loadMessages(true);
+  }, [pendingAutoLoad, loadMessages]);
 
   useEffect(() => {
     if (!hasSearched) return;
@@ -171,39 +238,19 @@ function App() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (mode === 'space' && !space.trim()) return;
-    setMessages([]);
-    setHasMore(true);
+    setHash(`/s:${space.trim()}`);
+    resetTimeline({ keepSearch: true });
     setHasSearched(true);
-    lastTimestamp.current = undefined;
     await loadMessages(true);
   };
 
   const handleAllEvents = async () => {
-    const requestId = ++requestIdRef.current;
+    setHash('/explore');
     setMode('all');
     setSpace('');
-    setMessages([]);
-    setHasMore(true);
+    resetTimeline({ keepSearch: true });
     setHasSearched(true);
-    lastTimestamp.current = undefined;
-    try {
-      setLoading(true);
-      setError(null);
-      const timestamp = selectedDate ? Math.floor(selectedDate.getTime() / 1000) : undefined;
-      const response = await fetchAllMessages(10, 0, timestamp);
-      if (requestId !== requestIdRef.current) return;
-      const newMessages = response.messages;
-      if (newMessages.length < 10) setHasMore(false);
-      if (newMessages.length > 0) lastTimestamp.current = newMessages[newMessages.length - 1].timestamp;
-      setMessages(newMessages);
-    } catch (err) {
-      if (requestId !== requestIdRef.current) return;
-      setError(err instanceof Error ? err.message : 'Failed to fetch messages');
-    } finally {
-      if (requestId === requestIdRef.current) {
-        setLoading(false);
-      }
-    }
+    setPendingAutoLoad(true);
   };
 
   const handleDateSelect = (date: Date | undefined) => {
@@ -217,16 +264,25 @@ function App() {
     }
   };
 
-  const clearDate = () => {
-    setSelectedDate(undefined);
-    setShowCalendar(false);
-    if (hasSearched) {
-      setMessages([]);
-      setHasMore(true);
-      lastTimestamp.current = undefined;
-      loadMessages(true);
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    } catch {
+      // fallback for browsers without clipboard API
     }
   };
+
+  const handleReset = () => {
+    setHash('');
+    setMode('space');
+    setSpace('');
+    resetTimeline({ clearDate: true });
+  };
+
+  const hover = (key: string, value: boolean) =>
+    setHoverStates(prev => ({ ...prev, [key]: value }));
 
   const isDark = theme === 'dark';
 
@@ -235,29 +291,49 @@ function App() {
       {/* Top bar */}
       <div className={`border-b-2 ${isDark ? 'border-zinc-800 bg-zinc-950/80' : 'border-zinc-200 bg-white/80'} backdrop-blur-sm sticky top-0 z-30`}>
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <button
+            type="button"
+            className="flex items-center gap-3 cursor-pointer"
+            onMouseEnter={() => hover('logo', true)}
+            onMouseLeave={() => hover('logo', false)}
+            onClick={handleReset}
+          >
             <div className="w-8 h-8 bg-red-600 flex items-center justify-center">
               <Zap size={16} className="text-white" />
             </div>
-            <span
-              onMouseEnter={() => setHoverStates(prev => ({ ...prev, logo: true }))}
-              onMouseLeave={() => setHoverStates(prev => ({ ...prev, logo: false }))}
-              className={`font-mono font-bold text-sm uppercase tracking-wider ${isDark ? 'text-white' : 'text-black'}`}
-            >
+            <span className={`font-mono font-bold text-sm uppercase tracking-wider ${isDark ? 'text-white' : 'text-black'}`}>
               <ScrambleText externalHover={hoverStates.logo}>SNAPSHOT EXPLORER</ScrambleText>
             </span>
-          </div>
-          <button
-            onClick={toggleTheme}
-            className={`p-2 border-2 transition-all duration-100 hover:-translate-y-0.5 ${
-              isDark
-                ? 'border-zinc-700 text-zinc-400 hover:text-white hover:border-white bg-zinc-900'
-                : 'border-zinc-300 text-zinc-600 hover:text-black hover:border-black bg-white'
-            }`}
-            aria-label="Toggle theme"
-          >
-            {isDark ? <Sun size={16} /> : <Moon size={16} />}
           </button>
+          <div className="flex items-center gap-2">
+            {hasSearched && mode === 'space' && space && (
+              <button
+                onClick={handleShare}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 border-2 font-mono text-xs transition-all duration-100 hover:-translate-y-0.5 ${
+                  shareCopied
+                    ? 'bg-green-600 border-green-600 text-white'
+                    : isDark
+                      ? 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500'
+                      : 'bg-white border-zinc-300 text-zinc-500 hover:text-black hover:border-zinc-400'
+                }`}
+                title="Copy link to this space"
+              >
+                <span className="hidden sm:inline max-w-35 truncate">{space}</span>
+                {shareCopied ? <Check size={12} /> : <Link size={12} />}
+              </button>
+            )}
+            <button
+              onClick={toggleTheme}
+              className={`p-2 border-2 transition-all duration-100 hover:-translate-y-0.5 ${
+                isDark
+                  ? 'border-zinc-700 text-zinc-400 hover:text-white hover:border-white bg-zinc-900'
+                  : 'border-zinc-300 text-zinc-600 hover:text-black hover:border-black bg-white'
+              }`}
+              aria-label="Toggle theme"
+            >
+              {isDark ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -265,8 +341,8 @@ function App() {
         {/* Hero */}
         <div className="mb-10">
           <h1
-            onMouseEnter={() => setHoverStates(prev => ({ ...prev, header: true }))}
-            onMouseLeave={() => setHoverStates(prev => ({ ...prev, header: false }))}
+            onMouseEnter={() => hover('header', true)}
+            onMouseLeave={() => hover('header', false)}
             className={`text-5xl md:text-7xl font-black uppercase tracking-tighter leading-[0.85] mb-4 ${isDark ? 'text-white' : 'text-black'}`}
             style={{ fontFamily: 'Impact, Arial Black, sans-serif' }}
           >
@@ -292,14 +368,11 @@ function App() {
                 onClick={() => {
                   if (mode !== 'space') {
                     setMode('space');
-                    setMessages([]);
-                    setHasMore(true);
-                    setHasSearched(false);
-                    lastTimestamp.current = undefined;
+                    resetTimeline();
                   }
                 }}
-                onMouseEnter={() => setHoverStates(prev => ({ ...prev, tabSpace: true }))}
-                onMouseLeave={() => setHoverStates(prev => ({ ...prev, tabSpace: false }))}
+                onMouseEnter={() => hover('tabSpace', true)}
+                onMouseLeave={() => hover('tabSpace', false)}
                 className={`px-4 py-2 font-mono font-bold text-xs uppercase border-2 transition-all duration-100 ${
                   mode === 'space'
                     ? 'bg-red-600 border-red-600 text-white'
@@ -315,14 +388,11 @@ function App() {
                 onClick={() => {
                   if (mode !== 'all') {
                     setMode('all');
-                    setMessages([]);
-                    setHasMore(true);
-                    setHasSearched(false);
-                    lastTimestamp.current = undefined;
+                    resetTimeline();
                   }
                 }}
-                onMouseEnter={() => setHoverStates(prev => ({ ...prev, tabAll: true }))}
-                onMouseLeave={() => setHoverStates(prev => ({ ...prev, tabAll: false }))}
+                onMouseEnter={() => hover('tabAll', true)}
+                onMouseLeave={() => hover('tabAll', false)}
                 className={`px-4 py-2 font-mono font-bold text-xs uppercase border-2 border-l-0 transition-all duration-100 ${
                   mode === 'all'
                     ? 'bg-red-600 border-red-600 text-white'
@@ -385,13 +455,13 @@ function App() {
                             <img
                               src={formatAvatar(s.avatar)}
                               alt=""
-                              className="w-7 h-7 rounded-full border border-zinc-600 flex-shrink-0 object-cover"
+                              className="w-7 h-7 rounded-full border border-zinc-600 shrink-0 object-cover"
                               onError={(e) => {
                                 (e.target as HTMLImageElement).style.display = 'none';
                               }}
                             />
                           ) : (
-                            <div className={`w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold ${
+                            <div className={`w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-xs font-bold ${
                               isDark ? 'bg-zinc-700 text-zinc-400' : 'bg-zinc-200 text-zinc-500'
                             }`}>
                               {s.name?.charAt(0)?.toUpperCase() || '?'}
@@ -403,7 +473,7 @@ function App() {
                               {s.id}
                             </div>
                           </div>
-                          <div className={`flex items-center gap-1 text-xs flex-shrink-0 ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                          <div className={`flex items-center gap-1 text-xs shrink-0 ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
                             <Users size={11} />
                             {s.followersCount?.toLocaleString() || 0}
                           </div>
@@ -455,7 +525,7 @@ function App() {
                     {selectedDate && (
                       <button
                         type="button"
-                        onClick={clearDate}
+                        onClick={() => handleDateSelect(undefined)}
                         className="w-full px-4 py-2 border-t-2 font-mono font-bold uppercase text-xs bg-red-600 text-white border-red-600 hover:bg-red-700 transition-colors"
                       >
                         Clear date
@@ -472,8 +542,8 @@ function App() {
                 <button
                   type="submit"
                   disabled={loading || !space.trim()}
-                  onMouseEnter={() => setHoverStates(prev => ({ ...prev, submit: true }))}
-                  onMouseLeave={() => setHoverStates(prev => ({ ...prev, submit: false }))}
+                  onMouseEnter={() => hover('submit', true)}
+                  onMouseLeave={() => hover('submit', false)}
                   className="flex-1 px-6 py-3 bg-red-600 text-white border-2 border-red-600 font-mono font-bold uppercase text-sm tracking-wider transition-all duration-100 hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_rgba(185,28,28,1)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
                   style={{ fontFamily: 'Impact, Arial Black, sans-serif' }}
                 >
@@ -484,8 +554,8 @@ function App() {
                   type="button"
                   onClick={handleAllEvents}
                   disabled={loading}
-                  onMouseEnter={() => setHoverStates(prev => ({ ...prev, submit: true }))}
-                  onMouseLeave={() => setHoverStates(prev => ({ ...prev, submit: false }))}
+                  onMouseEnter={() => hover('submit', true)}
+                  onMouseLeave={() => hover('submit', false)}
                   className="flex-1 px-6 py-3 bg-red-600 text-white border-2 border-red-600 font-mono font-bold uppercase text-sm tracking-wider transition-all duration-100 hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_rgba(185,28,28,1)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
                   style={{ fontFamily: 'Impact, Arial Black, sans-serif' }}
                 >
@@ -502,25 +572,23 @@ function App() {
                 Filter by type
               </div>
               <div className="flex flex-wrap gap-2">
-                {[
+                {([
                   { type: 'proposal', label: 'Proposals', color: 'bg-emerald-600' },
                   { type: 'settings', label: 'Settings', color: 'bg-blue-600' },
                   { type: 'delete-proposal', label: 'Deleted', color: 'bg-red-600' },
-                  { type: 'update-proposal', label: 'Updated', color: 'bg-amber-600' }
-                ].map(({ type, label, color }) => {
+                  { type: 'update-proposal', label: 'Updated', color: 'bg-amber-600' },
+                ] as const).map(({ type, label, color }) => {
                   const isSelected = selectedTypes.includes(type);
                   return (
                     <button
                       key={type}
                       type="button"
-                      onMouseEnter={() => setHoverStates(prev => ({ ...prev, [`filter-${type}`]: true }))}
-                      onMouseLeave={() => setHoverStates(prev => ({ ...prev, [`filter-${type}`]: false }))}
+                      onMouseEnter={() => hover(`filter-${type}`, true)}
+                      onMouseLeave={() => hover(`filter-${type}`, false)}
                       onClick={() => {
-                        if (isSelected) {
-                          setSelectedTypes(selectedTypes.filter(t => t !== type));
-                        } else {
-                          setSelectedTypes([...selectedTypes, type]);
-                        }
+                        setSelectedTypes(prev =>
+                          isSelected ? prev.filter(t => t !== type) : [...prev, type]
+                        );
                       }}
                       className={`px-3 py-1.5 font-mono font-bold uppercase text-[11px] border-2 transition-all duration-100 hover:-translate-y-0.5 ${
                         isSelected
@@ -536,11 +604,12 @@ function App() {
                 })}
                 <button
                   type="button"
-                  onMouseEnter={() => setHoverStates(prev => ({ ...prev, filterToggle: true }))}
-                  onMouseLeave={() => setHoverStates(prev => ({ ...prev, filterToggle: false }))}
+                  onMouseEnter={() => hover('filterToggle', true)}
+                  onMouseLeave={() => hover('filterToggle', false)}
                   onClick={() => {
-                    const allTypes = ['proposal', 'settings', 'delete-proposal', 'update-proposal'];
-                    setSelectedTypes(selectedTypes.length === allTypes.length ? [] : allTypes);
+                    setSelectedTypes(prev =>
+                      prev.length === EVENT_TYPES.length ? [] : [...EVENT_TYPES]
+                    );
                   }}
                   className={`px-3 py-1.5 font-mono text-[11px] uppercase border-2 border-dashed transition-all duration-100 hover:-translate-y-0.5 ${
                     isDark
@@ -549,7 +618,7 @@ function App() {
                   }`}
                 >
                   <ScrambleText externalHover={hoverStates.filterToggle}>
-                    {selectedTypes.length === 4 ? 'Clear all' : 'Select all'}
+                    {selectedTypes.length === EVENT_TYPES.length ? 'Clear all' : 'Select all'}
                   </ScrambleText>
                 </button>
               </div>
@@ -571,9 +640,9 @@ function App() {
           theme={theme}
           showSpaceBadge={mode === 'all'}
         />
-        
+
         <div ref={observerTarget} className="h-4" />
-        
+
         {!hasMore && messages.length > 0 && (
           <div className={`text-center py-4 font-mono text-xs uppercase tracking-widest ${isDark ? 'text-zinc-600' : 'text-zinc-400'}`}>
             &mdash; End of timeline &mdash;

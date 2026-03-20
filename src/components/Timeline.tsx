@@ -10,6 +10,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import type { SnapshotMessage } from '../types';
+import { IPFS_GATEWAY } from '../constants';
 import { Modal } from './Modal';
 import { IPFSContent } from './IPFSContent';
 import { SettingsDiff } from './SettingsDiff';
@@ -84,6 +85,9 @@ export const Timeline: React.FC<TimelineProps> = ({ messages, loading, space, th
 
   const isDark = theme === 'dark';
 
+  const hover = (key: string, value: boolean) =>
+    setHoverStates(prev => ({ ...prev, [key]: value }));
+
   // Group messages by month/year
   const monthGroups = useMemo(() => {
     const groups: MonthGroup[] = [];
@@ -118,6 +122,16 @@ export const Timeline: React.FC<TimelineProps> = ({ messages, loading, space, th
     return null;
   };
 
+  const hasDiff = (type: string) => type === 'settings' || type === 'update-proposal';
+
+  const handleDiffClick = (message: SnapshotMessage) => {
+    if (message.type === 'settings') {
+      setSelectedSettingsDiff(message);
+    } else if (message.type === 'update-proposal') {
+      setSelectedProposalDiff(message);
+    }
+  };
+
   if (messages.length === 0 && !loading) {
     return (
       <div className={`text-center py-20 ${isDark ? 'text-zinc-600' : 'text-zinc-400'}`}>
@@ -140,7 +154,7 @@ export const Timeline: React.FC<TimelineProps> = ({ messages, loading, space, th
     <div className="w-full max-w-4xl mx-auto relative">
       {/* Right timeline rail - continuous vertical line */}
       {monthGroups.length > 0 && (
-        <div className={`hidden md:block absolute right-[22px] top-4 bottom-0 w-px ${
+        <div className={`hidden md:block absolute right-5.5 top-4 bottom-0 w-px ${
           isDark ? 'bg-zinc-800' : 'bg-zinc-200'
         }`} />
       )}
@@ -207,8 +221,8 @@ export const Timeline: React.FC<TimelineProps> = ({ messages, loading, space, th
                             <Icon size={14} className="text-white" />
                           </div>
                           <span
-                            onMouseEnter={() => setHoverStates(prev => ({ ...prev, [`label-${message.id}`]: true }))}
-                            onMouseLeave={() => setHoverStates(prev => ({ ...prev, [`label-${message.id}`]: false }))}
+                            onMouseEnter={() => hover(`label-${message.id}`, true)}
+                            onMouseLeave={() => hover(`label-${message.id}`, false)}
                             className={`font-bold text-sm uppercase tracking-wide ${
                               isDark ? config.textDark : config.textLight
                             }`}
@@ -228,8 +242,8 @@ export const Timeline: React.FC<TimelineProps> = ({ messages, loading, space, th
                               href={proposalUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              onMouseEnter={() => setHoverStates(prev => ({ ...prev, [`snap-${message.id}`]: true }))}
-                              onMouseLeave={() => setHoverStates(prev => ({ ...prev, [`snap-${message.id}`]: false }))}
+                              onMouseEnter={() => hover(`snap-${message.id}`, true)}
+                              onMouseLeave={() => hover(`snap-${message.id}`, false)}
                               className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-mono font-bold uppercase bg-red-600 text-white transition-all duration-100 hover:-translate-y-0.5"
                             >
                               <ScrambleText externalHover={hoverStates[`snap-${message.id}`]}>Snapshot</ScrambleText>
@@ -246,11 +260,11 @@ export const Timeline: React.FC<TimelineProps> = ({ messages, loading, space, th
                       {/* Actions row */}
                       <div className="flex flex-wrap items-center gap-2 text-xs">
                         <a
-                          href={`https://4everland.io/ipfs/${message.ipfs}`}
+                          href={`${IPFS_GATEWAY}/${message.ipfs}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          onMouseEnter={() => setHoverStates(prev => ({ ...prev, [`ipfs-${message.id}`]: true }))}
-                          onMouseLeave={() => setHoverStates(prev => ({ ...prev, [`ipfs-${message.id}`]: false }))}
+                          onMouseEnter={() => hover(`ipfs-${message.id}`, true)}
+                          onMouseLeave={() => hover(`ipfs-${message.id}`, false)}
                           className="inline-flex items-center gap-1.5 px-2.5 py-1.5 font-mono font-bold uppercase bg-red-600 text-white transition-all duration-100 hover:-translate-y-0.5"
                         >
                           <ExternalLink size={11} />
@@ -258,8 +272,8 @@ export const Timeline: React.FC<TimelineProps> = ({ messages, loading, space, th
                         </a>
                         <button
                           onClick={() => setSelectedIPFS(message.ipfs)}
-                          onMouseEnter={() => setHoverStates(prev => ({ ...prev, [`view-${message.id}`]: true }))}
-                          onMouseLeave={() => setHoverStates(prev => ({ ...prev, [`view-${message.id}`]: false }))}
+                          onMouseEnter={() => hover(`view-${message.id}`, true)}
+                          onMouseLeave={() => hover(`view-${message.id}`, false)}
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 font-mono font-bold uppercase border-2 transition-all duration-100 hover:-translate-y-0.5 ${
                             isDark
                               ? 'border-zinc-700 text-zinc-300 hover:border-zinc-500 hover:text-white'
@@ -269,26 +283,11 @@ export const Timeline: React.FC<TimelineProps> = ({ messages, loading, space, th
                           <Eye size={11} />
                           <ScrambleText externalHover={hoverStates[`view-${message.id}`]}>View</ScrambleText>
                         </button>
-                        {message.type === 'settings' && (
+                        {hasDiff(message.type) && (
                           <button
-                            onClick={() => setSelectedSettingsDiff(message)}
-                            onMouseEnter={() => setHoverStates(prev => ({ ...prev, [`diff-${message.id}`]: true }))}
-                            onMouseLeave={() => setHoverStates(prev => ({ ...prev, [`diff-${message.id}`]: false }))}
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 font-mono font-bold uppercase border-2 transition-all duration-100 hover:-translate-y-0.5 ${
-                              isDark
-                                ? 'border-zinc-700 text-zinc-300 hover:border-zinc-500 hover:text-white'
-                                : 'border-zinc-300 text-zinc-600 hover:border-zinc-400 hover:text-black'
-                            }`}
-                          >
-                            <FileEdit size={11} />
-                            <ScrambleText externalHover={hoverStates[`diff-${message.id}`]}>Diff</ScrambleText>
-                          </button>
-                        )}
-                        {message.type === 'update-proposal' && (
-                          <button
-                            onClick={() => setSelectedProposalDiff(message)}
-                            onMouseEnter={() => setHoverStates(prev => ({ ...prev, [`diff-${message.id}`]: true }))}
-                            onMouseLeave={() => setHoverStates(prev => ({ ...prev, [`diff-${message.id}`]: false }))}
+                            onClick={() => handleDiffClick(message)}
+                            onMouseEnter={() => hover(`diff-${message.id}`, true)}
+                            onMouseLeave={() => hover(`diff-${message.id}`, false)}
                             className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 font-mono font-bold uppercase border-2 transition-all duration-100 hover:-translate-y-0.5 ${
                               isDark
                                 ? 'border-zinc-700 text-zinc-300 hover:border-zinc-500 hover:text-white'

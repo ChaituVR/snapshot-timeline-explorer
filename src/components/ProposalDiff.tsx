@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AlertCircle, GitCompare, Copy, Check } from 'lucide-react';
 import { DiffEditor } from '@monaco-editor/react';
 import { fetchProposalById } from '../api';
+import { IPFS_GATEWAY, DIFF_EDITOR_OPTIONS } from '../constants';
 import type { SnapshotMessage } from '../types';
 
 interface ProposalDiffProps {
@@ -25,7 +26,7 @@ export const ProposalDiff: React.FC<ProposalDiffProps> = ({ currentMessage, spac
         setLoading(true);
         setError(null);
 
-        const currentResponse = await fetch(`https://4everland.io/ipfs/${currentMessage.ipfs}`);
+        const currentResponse = await fetch(`${IPFS_GATEWAY}/${currentMessage.ipfs}`);
         if (!currentResponse.ok) throw new Error('Failed to fetch current proposal update');
         const currentData = await currentResponse.json();
 
@@ -42,7 +43,7 @@ export const ProposalDiff: React.FC<ProposalDiffProps> = ({ currentMessage, spac
         const originalMessage = proposalResponse.messages.find(msg => msg.type === 'proposal');
         if (!originalMessage) throw new Error('Original proposal message not found');
 
-        const originalResponse = await fetch(`https://4everland.io/ipfs/${originalMessage.ipfs}`);
+        const originalResponse = await fetch(`${IPFS_GATEWAY}/${originalMessage.ipfs}`);
         if (!originalResponse.ok) throw new Error('Failed to fetch original proposal');
 
         const originalData = await originalResponse.json();
@@ -67,24 +68,6 @@ export const ProposalDiff: React.FC<ProposalDiffProps> = ({ currentMessage, spac
     }
   };
 
-  const editorOptions = {
-    readOnly: true,
-    minimap: { enabled: false },
-    fontSize: 13,
-    fontFamily: "'Fira Code', 'Cascadia Code', 'JetBrains Mono', Menlo, Monaco, 'Courier New', monospace",
-    fontLigatures: true,
-    scrollBeyondLastLine: false,
-    wordWrap: 'on' as const,
-    automaticLayout: true,
-    padding: { top: 12, bottom: 12 },
-    smoothScrolling: true,
-    renderSideBySide: true,
-    folding: true,
-    bracketPairColorization: { enabled: true },
-    guides: { bracketPairs: true, indentation: true },
-    scrollbar: { verticalScrollbarSize: 10, horizontalScrollbarSize: 10 },
-  };
-
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
@@ -106,6 +89,12 @@ export const ProposalDiff: React.FC<ProposalDiffProps> = ({ currentMessage, spac
 
   const originalJson = originalProposal ? JSON.stringify(originalProposal, null, 2) : '';
   const currentJson = JSON.stringify(currentProposal, null, 2);
+
+  const editorLoading = (
+    <div className="flex items-center justify-center h-[60vh] bg-[#1e1e1e]">
+      <div className="animate-spin rounded-full h-6 w-6 border-2 border-zinc-600 border-t-[#75beff]"></div>
+    </div>
+  );
 
   return (
     <div className="max-w-none">
@@ -165,12 +154,8 @@ export const ProposalDiff: React.FC<ProposalDiffProps> = ({ currentMessage, spac
           theme="vs-dark"
           keepCurrentOriginalModel={true}
           keepCurrentModifiedModel={true}
-          options={editorOptions}
-          loading={
-            <div className="flex items-center justify-center h-[60vh] bg-[#1e1e1e]">
-              <div className="animate-spin rounded-full h-6 w-6 border-2 border-zinc-600 border-t-[#75beff]"></div>
-            </div>
-          }
+          options={DIFF_EDITOR_OPTIONS}
+          loading={editorLoading}
         />
       </div>
     </div>

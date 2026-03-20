@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, AlertCircle, Copy, Check } from 'lucide-react';
 import Editor from '@monaco-editor/react';
+import { IPFS_GATEWAY, EDITOR_OPTIONS } from '../constants';
 
 interface IPFSContentProps {
   ipfsHash: string;
@@ -18,7 +19,7 @@ export const IPFSContent: React.FC<IPFSContentProps> = ({ ipfsHash }) => {
       try {
         setLoading(true);
         setError(null);
-        const response = await fetch(`https://4everland.io/ipfs/${ipfsHash}`);
+        const response = await fetch(`${IPFS_GATEWAY}/${ipfsHash}`);
 
         if (!response.ok) {
           throw new Error(`Failed to fetch content: ${response.status}`);
@@ -69,7 +70,7 @@ export const IPFSContent: React.FC<IPFSContentProps> = ({ ipfsHash }) => {
 
   return (
     <div className="max-w-none">
-      {/* Header bar - mimics VS Code tab bar */}
+      {/* Header bar */}
       <div className="flex items-center justify-between bg-[#1e1e1e] px-4 py-2 rounded-t-lg border-b border-[#333]">
         <div className="flex items-center gap-2">
           <FileText className="w-4 h-4 text-[#75beff]" />
@@ -108,31 +109,13 @@ export const IPFSContent: React.FC<IPFSContentProps> = ({ ipfsHash }) => {
           value={jsonString}
           theme="vs-dark"
           options={{
-            readOnly: true,
+            ...EDITOR_OPTIONS,
             minimap: { enabled: true },
-            fontSize: 13,
-            fontFamily: "'Fira Code', 'Cascadia Code', 'JetBrains Mono', Menlo, Monaco, 'Courier New', monospace",
-            fontLigatures: true,
             lineNumbers: 'on',
-            scrollBeyondLastLine: false,
-            wordWrap: 'on',
             wrappingIndent: 'indent',
-            automaticLayout: true,
-            padding: { top: 12, bottom: 12 },
             renderLineHighlight: 'all',
-            smoothScrolling: true,
             cursorBlinking: 'smooth',
-            folding: true,
             foldingHighlight: true,
-            bracketPairColorization: { enabled: true },
-            guides: {
-              bracketPairs: true,
-              indentation: true,
-            },
-            scrollbar: {
-              verticalScrollbarSize: 10,
-              horizontalScrollbarSize: 10,
-            },
           }}
           loading={
             <div className="flex items-center justify-center h-[60vh] bg-[#1e1e1e]">

@@ -21,19 +21,12 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
   }, [isOpen]);
 
   useEffect(() => {
+    if (!isOpen) return;
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
+      if (e.key === 'Escape') onClose();
     };
-
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
-    }
-
-    return () => {
-      document.removeEventListener('keydown', handleEscape);
-    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
@@ -41,19 +34,19 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center">
-        <div 
-          className="fixed inset-0 transition-opacity bg-black bg-opacity-50 backdrop-blur-sm" 
-          onClick={onClose} 
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+          onClick={onClose}
         />
-        
-        <div className="relative inline-block w-full max-w-4xl p-0 my-8 text-left bg-white rounded-2xl shadow-2xl transform transition-all">
+
+        <div className="relative inline-block w-full max-w-4xl p-0 my-8 text-left bg-zinc-900 border-2 border-zinc-700 shadow-2xl transform transition-all">
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 z-10 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+            className="absolute top-3 right-3 z-10 p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
-          
+
           <div className="p-6">
             {children}
           </div>
