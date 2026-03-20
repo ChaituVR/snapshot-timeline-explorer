@@ -39,12 +39,12 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
           onClick={onClose}
         />
 
-        <div className="relative inline-block w-full max-w-4xl p-0 my-8 text-left bg-zinc-900 border-2 border-zinc-700 shadow-2xl transform transition-all">
+        <div className="relative inline-block w-full max-w-6xl p-0 my-8 text-left bg-zinc-900 border-2 border-zinc-700 shadow-2xl transform transition-all">
           <button
             onClick={onClose}
-            className="absolute top-3 right-3 z-10 p-1.5 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+            className="absolute -top-3 -right-3 z-10 w-8 h-8 flex items-center justify-center bg-red-600 text-white border-2 border-zinc-700 hover:bg-red-700 transition-colors"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
 
           <div className="p-6">

@@ -75,9 +75,10 @@ interface TimelineProps {
   space: string;
   theme: 'light' | 'dark';
   showSpaceBadge?: boolean;
+  onSpaceClick?: (spaceId: string) => void;
 }
 
-export const Timeline: React.FC<TimelineProps> = ({ messages, loading, space, theme, showSpaceBadge = false }) => {
+export const Timeline: React.FC<TimelineProps> = ({ messages, loading, space, theme, showSpaceBadge = false, onSpaceClick }) => {
   const [selectedIPFS, setSelectedIPFS] = useState<string | null>(null);
   const [selectedSettingsDiff, setSelectedSettingsDiff] = useState<SnapshotMessage | null>(null);
   const [selectedProposalDiff, setSelectedProposalDiff] = useState<SnapshotMessage | null>(null);
@@ -231,11 +232,14 @@ export const Timeline: React.FC<TimelineProps> = ({ messages, loading, space, th
                             <ScrambleText externalHover={hoverStates[`label-${message.id}`]}>{config.label}</ScrambleText>
                           </span>
                           {showSpaceBadge && message.space && (
-                            <span className={`font-mono text-[11px] px-2 py-0.5 border ${
-                              isDark ? 'border-zinc-700 text-zinc-400' : 'border-zinc-300 text-zinc-500'
-                            }`}>
+                            <button
+                              onClick={() => onSpaceClick?.(message.space!)}
+                              className={`font-mono text-[11px] px-2 py-0.5 border cursor-pointer transition-all duration-100 hover:-translate-y-0.5 ${
+                                isDark ? 'border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-white' : 'border-zinc-300 text-zinc-500 hover:border-zinc-400 hover:text-black'
+                              }`}
+                            >
                               {message.space}
-                            </span>
+                            </button>
                           )}
                           {proposalUrl && (
                             <a

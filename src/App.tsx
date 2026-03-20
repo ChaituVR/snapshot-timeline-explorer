@@ -639,6 +639,14 @@ function App() {
           space={mode === 'all' ? '' : space}
           theme={theme}
           showSpaceBadge={mode === 'all'}
+          onSpaceClick={(spaceId) => {
+            setHash(`/s:${spaceId}`);
+            setMode('space');
+            setSpace(spaceId);
+            resetTimeline({ keepSearch: true });
+            setHasSearched(true);
+            setPendingAutoLoad(true);
+          }}
         />
 
         <div ref={observerTarget} className="h-4" />
