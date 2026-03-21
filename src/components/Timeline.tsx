@@ -8,6 +8,7 @@ import {
   Vote,
   Eye,
   Loader2,
+  Search,
 } from 'lucide-react';
 import type { SnapshotMessage } from '../types';
 import { IPFS_GATEWAY } from '../constants';
@@ -15,6 +16,7 @@ import { Modal } from './Modal';
 import { IPFSContent } from './IPFSContent';
 import { SettingsDiff } from './SettingsDiff';
 import { ProposalDiff } from './ProposalDiff';
+import { ProposalDetailView } from './ProposalDetailView';
 import { CopyButton } from './CopyButton';
 import { ScrambleText } from './ScrambleText';
 
@@ -76,12 +78,16 @@ interface TimelineProps {
   theme: 'light' | 'dark';
   showSpaceBadge?: boolean;
   onSpaceClick?: (spaceId: string) => void;
+  hasData?: boolean; // true when raw (unfiltered) messages exist
 }
 
-export const Timeline: React.FC<TimelineProps> = ({ messages, loading, space, theme, showSpaceBadge = false, onSpaceClick }) => {
+export const Timeline: React.FC<TimelineProps> = ({
+  messages, loading, space, theme, showSpaceBadge = false, onSpaceClick, hasData = false,
+}) => {
   const [selectedIPFS, setSelectedIPFS] = useState<string | null>(null);
   const [selectedSettingsDiff, setSelectedSettingsDiff] = useState<SnapshotMessage | null>(null);
   const [selectedProposalDiff, setSelectedProposalDiff] = useState<SnapshotMessage | null>(null);
+  const [selectedProposalDetail, setSelectedProposalDetail] = useState<{ id: string; space: string } | null>(null);
   const [hoverStates, setHoverStates] = useState<Record<string, boolean>>({});
 
   const isDark = theme === 'dark';
@@ -133,7 +139,35 @@ export const Timeline: React.FC<TimelineProps> = ({ messages, loading, space, th
     }
   };
 
+  const canOpenDetail = (type: string) => type === 'proposal' || type === 'update-proposal';
+
+  const handleProposalClick = (message: SnapshotMessage) => {
+    const s = message.space || space;
+    if (s) {
+      setSelectedProposalDetail({ id: message.id, space: s });
+    }
+  };
+
+  // Empty state: no messages and not loading
   if (messages.length === 0 && !loading) {
+    // If raw data exists but filters excluded everything
+    if (hasData) {
+      return (
+        <div className={`text-center py-16 ${isDark ? 'text-zinc-600' : 'text-zinc-400'}`}>
+          <div className={`w-16 h-16 mx-auto mb-4 border-2 border-dashed flex items-center justify-center ${
+            isDark ? 'border-zinc-800' : 'border-zinc-200'
+          }`}>
+            <Search className="w-6 h-6 opacity-30" />
+          </div>
+          <p className="font-mono text-sm uppercase tracking-widest">
+            No events match selected filters
+          </p>
+          <p className="font-mono text-xs mt-1 opacity-60">
+            Try selecting different event types above
+          </p>
+        </div>
+      );
+    }
     return (
       <div className={`text-center py-20 ${isDark ? 'text-zinc-600' : 'text-zinc-400'}`}>
         <div className={`w-16 h-16 mx-auto mb-4 border-2 flex items-center justify-center ${
@@ -204,15 +238,19 @@ export const Timeline: React.FC<TimelineProps> = ({ messages, loading, space, th
                 const config = TYPE_CONFIG[message.type];
                 const Icon = config.icon;
                 const proposalUrl = getProposalUrl(message);
+                const clickable = canOpenDetail(message.type);
 
                 return (
                   <div
                     key={`${message.id}-${message.timestamp}`}
                     className={`group border-2 border-l-[6px] ${config.borderClass} transition-all duration-100 hover:-translate-y-0.5 hover:shadow-md ${
+                      clickable ? 'cursor-pointer' : ''
+                    } ${
                       isDark
                         ? `${config.bgDark} border-zinc-800 hover:border-zinc-700`
                         : `${config.bgLight} border-zinc-200 hover:border-zinc-300`
                     }`}
+                    onClick={clickable ? () => handleProposalClick(message) : undefined}
                   >
                     <div className="p-5">
                       {/* Top row: type + date */}
@@ -233,7 +271,10 @@ export const Timeline: React.FC<TimelineProps> = ({ messages, loading, space, th
                           </span>
                           {showSpaceBadge && message.space && (
                             <button
-                              onClick={() => onSpaceClick?.(message.space!)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onSpaceClick?.(message.space!);
+                              }}
                               className={`font-mono text-[11px] px-2 py-0.5 border cursor-pointer transition-all duration-100 hover:-translate-y-0.5 ${
                                 isDark ? 'border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-white' : 'border-zinc-300 text-zinc-500 hover:border-zinc-400 hover:text-black'
                               }`}
@@ -246,6 +287,7 @@ export const Timeline: React.FC<TimelineProps> = ({ messages, loading, space, th
                               href={proposalUrl}
                               target="_blank"
                               rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
                               onMouseEnter={() => hover(`snap-${message.id}`, true)}
                               onMouseLeave={() => hover(`snap-${message.id}`, false)}
                               className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-mono font-bold uppercase bg-red-600 text-white transition-all duration-100 hover:-translate-y-0.5"
@@ -262,7 +304,7 @@ export const Timeline: React.FC<TimelineProps> = ({ messages, loading, space, th
                       </div>
 
                       {/* Actions row */}
-                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <div className="flex flex-wrap items-center gap-2 text-xs" onClick={(e) => e.stopPropagation()}>
                         <a
                           href={`${IPFS_GATEWAY}/${message.ipfs}`}
                           target="_blank"
@@ -366,6 +408,12 @@ export const Timeline: React.FC<TimelineProps> = ({ messages, loading, space, th
       <Modal isOpen={!!selectedProposalDiff} onClose={() => setSelectedProposalDiff(null)}>
         {selectedProposalDiff && (
           <ProposalDiff currentMessage={selectedProposalDiff} space={selectedProposalDiff.space || space} />
+        )}
+      </Modal>
+
+      <Modal isOpen={!!selectedProposalDetail} onClose={() => setSelectedProposalDetail(null)}>
+        {selectedProposalDetail && (
+          <ProposalDetailView proposalId={selectedProposalDetail.id} space={selectedProposalDetail.space} />
         )}
       </Modal>
     </div>

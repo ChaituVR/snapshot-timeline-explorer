@@ -639,6 +639,7 @@ function App() {
           space={mode === 'all' ? '' : space}
           theme={theme}
           showSpaceBadge={mode === 'all'}
+          hasData={messages.length > 0}
           onSpaceClick={(spaceId) => {
             setHash(`/s:${spaceId}`);
             setMode('space');
