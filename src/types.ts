@@ -1,10 +1,15 @@
 export interface SnapshotMessage {
   id: string;
   mci: number;
-  type: 'proposal' | 'settings' | 'delete-proposal' | 'update-proposal';
+  type: 'proposal' | 'settings' | 'delete-proposal' | 'update-proposal' | 'vote';
   ipfs: string;
   timestamp: number;
   space?: string;
+  address?: string;
+  proposalId?: string;
+  proposalTitle?: string;
+  voteChoice?: number | number[] | Record<string, number>;
+  voteVp?: number;
 }
 
 export interface SnapshotResponse {
@@ -65,4 +70,12 @@ export interface VoteDetail {
   app: string;
   vp: number;
   vp_state: string;
+  proposal?: {
+    id: string;
+    title?: string;
+    space?: {
+      id: string;
+      name?: string;
+    };
+  };
 }

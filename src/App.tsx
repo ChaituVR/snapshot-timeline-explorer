@@ -3,18 +3,28 @@ import { Calendar, Moon, Sun, Globe, Zap, Users, Link, Check } from 'lucide-reac
 import { DayPicker } from 'react-day-picker';
 import { Timeline } from './components/Timeline';
 import { ScrambleText } from './components/ScrambleText';
-import { fetchMessages, fetchAllMessages, searchSpaces } from './api';
+import { fetchMessages, fetchAllMessages, searchSpaces, fetchVotesByAddress } from './api';
 import { EVENT_TYPES } from './constants';
 import type { SnapshotMessage, SpaceResult } from './types';
 import 'react-day-picker/style.css';
 
-const parseHashToState = (): { mode: 'space' | 'all'; space: string } | null => {
+type AppMode = 'space' | 'all' | 'address';
+
+const parseHashToState = (): { mode: AppMode; space: string; address: string } | null => {
   const hash = window.location.hash;
+  if (hash.startsWith('#/a:')) {
+    const rest = hash.slice(4);
+    const slashIdx = rest.indexOf('/s:');
+    if (slashIdx !== -1) {
+      return { mode: 'address', address: rest.slice(0, slashIdx), space: rest.slice(slashIdx + 3).replace(/\/$/, '') };
+    }
+    return { mode: 'address', address: rest.replace(/\/$/, ''), space: '' };
+  }
   if (hash.startsWith('#/s:')) {
-    return { mode: 'space', space: hash.slice(4).replace(/\/$/, '') };
+    return { mode: 'space', space: hash.slice(4).replace(/\/$/, ''), address: '' };
   }
   if (hash === '#/explore') {
-    return { mode: 'all', space: '' };
+    return { mode: 'all', space: '', address: '' };
   }
   return null;
 };
@@ -38,13 +48,14 @@ function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [selectedTypes, setSelectedTypes] = useState<string[]>([...EVENT_TYPES]);
   const [hoverStates, setHoverStates] = useState<Record<string, boolean>>({});
-  const [mode, setMode] = useState<'space' | 'all'>('space');
+  const [mode, setMode] = useState<AppMode>('space');
   const [hasSearched, setHasSearched] = useState(false);
   const [spaceSuggestions, setSpaceSuggestions] = useState<SpaceResult[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
   const [pendingAutoLoad, setPendingAutoLoad] = useState(false);
+  const [addressFilter, setAddressFilter] = useState('');
 
   const observerTarget = useRef<HTMLDivElement>(null);
   const lastTimestamp = useRef<number | undefined>(undefined);
@@ -84,6 +95,7 @@ function App() {
     if (parsed) {
       setMode(parsed.mode);
       setSpace(parsed.space);
+      setAddressFilter(parsed.address);
       setHasSearched(true);
       setHasMore(true);
       setPendingAutoLoad(true);
@@ -97,6 +109,7 @@ function App() {
       if (p) {
         setMode(p.mode);
         setSpace(p.space);
+        setAddressFilter(p.address);
         resetTimeline({ keepSearch: true });
         setHasSearched(true);
         setPendingAutoLoad(true);
@@ -176,7 +189,7 @@ function App() {
     return avatar;
   };
 
-  const loadMessages = useCallback(async (isInitial = false) => {
+  const loadMessages = useCallback(async (isInitial = false, addressOverride?: string) => {
     const requestId = ++requestIdRef.current;
     try {
       setLoading(true);
@@ -184,24 +197,90 @@ function App() {
 
       const timestamp = selectedDate ? Math.floor(selectedDate.getTime() / 1000) : undefined;
       const timestampCursor = isInitial ? timestamp : lastTimestamp.current;
+      const activeAddress = (addressOverride ?? addressFilter).trim() || undefined;
+      const pageSize = 10;
 
-      const response = mode === 'all'
-        ? await fetchAllMessages(10, 0, timestampCursor)
-        : await fetchMessages(space, 10, 0, timestampCursor);
+      let newEvents: SnapshotMessage[] = [];
 
-      if (requestId !== requestIdRef.current) return;
+      if (mode === 'address') {
+        // Address mode: fetch votes (always) + messages for this address
+        const spaceFilter = space.trim() || undefined;
 
-      const newMessages = response.messages;
+        const [votesResponse, messagesResponse] = await Promise.all([
+          fetchVotesByAddress(activeAddress!, 25, 0, timestampCursor, spaceFilter),
+          spaceFilter
+            ? fetchMessages(spaceFilter, 25, 0, timestampCursor, activeAddress)
+            : fetchAllMessages(25, 0, timestampCursor, activeAddress),
+        ]);
 
-      if (newMessages.length < 10) {
+        if (requestId !== requestIdRef.current) return;
+
+        const voteEvents: SnapshotMessage[] = votesResponse.votes.map(vote => ({
+          id: vote.id,
+          mci: 0,
+          type: 'vote' as const,
+          ipfs: vote.ipfs,
+          timestamp: vote.created,
+          space: vote.proposal?.space?.id,
+          address: vote.voter,
+          proposalId: vote.proposal?.id,
+          proposalTitle: vote.proposal?.title,
+          voteChoice: vote.choice,
+          voteVp: vote.vp,
+        }));
+
+        newEvents = [...messagesResponse.messages, ...voteEvents];
+      } else {
+        // Space or All mode
+        const response = mode === 'all'
+          ? await fetchAllMessages(25, 0, timestampCursor, activeAddress)
+          : await fetchMessages(space, 25, 0, timestampCursor, activeAddress);
+
+        if (requestId !== requestIdRef.current) return;
+
+        newEvents = response.messages;
+
+        if (activeAddress) {
+          const spaceFilter = mode === 'space' ? space : undefined;
+          const votesResponse = await fetchVotesByAddress(activeAddress, 25, 0, timestampCursor, spaceFilter);
+
+          if (requestId !== requestIdRef.current) return;
+
+          const voteEvents: SnapshotMessage[] = votesResponse.votes.map(vote => ({
+            id: vote.id,
+            mci: 0,
+            type: 'vote' as const,
+            ipfs: vote.ipfs,
+            timestamp: vote.created,
+            space: vote.proposal?.space?.id,
+            address: vote.voter,
+            proposalId: vote.proposal?.id,
+            proposalTitle: vote.proposal?.title,
+            voteChoice: vote.choice,
+            voteVp: vote.vp,
+          }));
+
+          newEvents = [...newEvents, ...voteEvents];
+        }
+      }
+
+      newEvents = newEvents
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .filter((event, index, allEvents) =>
+          allEvents.findIndex((item) => item.type === event.type && item.id === event.id && item.timestamp === event.timestamp) === index
+        );
+
+      const pagedEvents = newEvents.slice(0, pageSize);
+
+      if (pagedEvents.length < pageSize) {
         setHasMore(false);
       }
 
-      if (newMessages.length > 0) {
-        lastTimestamp.current = newMessages[newMessages.length - 1].timestamp;
+      if (pagedEvents.length > 0) {
+        lastTimestamp.current = pagedEvents[pagedEvents.length - 1].timestamp;
       }
 
-      setMessages(prev => isInitial ? newMessages : [...prev, ...newMessages]);
+      setMessages(prev => isInitial ? pagedEvents : [...prev, ...pagedEvents]);
     } catch (err) {
       if (requestId !== requestIdRef.current) return;
       setError(err instanceof Error ? err.message : 'Failed to fetch messages');
@@ -210,7 +289,7 @@ function App() {
         setLoading(false);
       }
     }
-  }, [space, selectedDate, mode]);
+  }, [space, selectedDate, mode, addressFilter]);
 
   // Auto-load after URL-driven state init
   useEffect(() => {
@@ -238,7 +317,13 @@ function App() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (mode === 'space' && !space.trim()) return;
-    setHash(`/s:${space.trim()}`);
+    if (mode === 'address' && !addressFilter.trim()) return;
+    if (mode === 'space') {
+      setHash(`/s:${space.trim()}`);
+    } else if (mode === 'address') {
+      const addr = addressFilter.trim();
+      setHash(space.trim() ? `/a:${addr}/s:${space.trim()}` : `/a:${addr}`);
+    }
     resetTimeline({ keepSearch: true });
     setHasSearched(true);
     await loadMessages(true);
@@ -252,6 +337,16 @@ function App() {
     setHasSearched(true);
     setPendingAutoLoad(true);
   };
+
+  const applyAddressFilter = useCallback(async (address: string) => {
+    setAddressFilter(address);
+    setMode('address');
+    const currentSpace = space.trim();
+    setHash(currentSpace ? `/a:${address}/s:${currentSpace}` : `/a:${address}`);
+    resetTimeline({ keepSearch: true });
+    setHasSearched(true);
+    await loadMessages(true, address);
+  }, [loadMessages, resetTimeline, space, setHash]);
 
   const handleDateSelect = (date: Date | undefined) => {
     setSelectedDate(date);
@@ -278,6 +373,7 @@ function App() {
     setHash('');
     setMode('space');
     setSpace('');
+    setAddressFilter('');
     resetTimeline({ clearDate: true });
   };
 
@@ -306,7 +402,7 @@ function App() {
             </span>
           </button>
           <div className="flex items-center gap-2">
-            {hasSearched && mode === 'space' && space && (
+            {hasSearched && ((mode === 'space' && space) || mode === 'address') && (
               <button
                 onClick={handleShare}
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 border-2 font-mono text-xs transition-all duration-100 hover:-translate-y-0.5 ${
@@ -318,7 +414,7 @@ function App() {
                 }`}
                 title="Copy link to this space"
               >
-                <span className="hidden sm:inline max-w-35 truncate">{space}</span>
+                <span className="hidden sm:inline max-w-35 truncate">{mode === 'address' ? `${addressFilter.slice(0, 6)}...${addressFilter.slice(-4)}` : space}</span>
                 {shareCopied ? <Check size={12} /> : <Link size={12} />}
               </button>
             )}
@@ -368,6 +464,7 @@ function App() {
                 onClick={() => {
                   if (mode !== 'space') {
                     setMode('space');
+                    setAddressFilter('');
                     resetTimeline();
                   }
                 }}
@@ -388,6 +485,7 @@ function App() {
                 onClick={() => {
                   if (mode !== 'all') {
                     setMode('all');
+                    setAddressFilter('');
                     resetTimeline();
                   }
                 }}
@@ -402,6 +500,26 @@ function App() {
                 }`}
               >
                 <ScrambleText externalHover={hoverStates.tabAll}>ALL EVENTS</ScrambleText>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (mode !== 'address') {
+                    setMode('address');
+                    resetTimeline();
+                  }
+                }}
+                onMouseEnter={() => hover('tabAddress', true)}
+                onMouseLeave={() => hover('tabAddress', false)}
+                className={`px-4 py-2 font-mono font-bold text-xs uppercase border-2 border-l-0 transition-all duration-100 ${
+                  mode === 'address'
+                    ? 'bg-red-600 border-red-600 text-white'
+                    : isDark
+                      ? 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500'
+                      : 'bg-white border-zinc-300 text-zinc-500 hover:text-black hover:border-zinc-400'
+                }`}
+              >
+                <ScrambleText externalHover={hoverStates.tabAddress}>BY ADDRESS</ScrambleText>
               </button>
             </div>
 
@@ -493,6 +611,19 @@ function App() {
                   Showing events from all spaces
                 </div>
               )}
+              {mode === 'address' && (
+                <input
+                  type="text"
+                  value={addressFilter}
+                  onChange={(e) => setAddressFilter(e.target.value)}
+                  placeholder="User address — 0x..."
+                  className={`flex-1 px-4 py-3 border-2 outline-none font-mono text-sm transition-all duration-100 ${
+                    isDark
+                      ? 'bg-zinc-950 text-white placeholder-zinc-600 border-zinc-700 focus:border-red-600'
+                      : 'bg-zinc-50 text-black placeholder-zinc-400 border-zinc-300 focus:border-red-600'
+                  }`}
+                />
+              )}
               <div className="relative">
                 <button
                   ref={calendarBtnRef}
@@ -536,6 +667,101 @@ function App() {
               </div>
             </div>
 
+            {mode === 'address' && (
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={space}
+                    onChange={(e) => handleSpaceInputChange(e.target.value)}
+                    onFocus={() => {
+                      if (spaceSuggestions.length > 0) setShowSuggestions(true);
+                    }}
+                    placeholder="Filter by space (optional) — e.g. ens.eth"
+                    className={`w-full px-4 py-2.5 border-2 outline-none font-mono text-sm transition-all duration-100 ${
+                      isDark
+                        ? 'bg-zinc-950 text-white placeholder-zinc-600 border-zinc-700 focus:border-red-600'
+                        : 'bg-zinc-50 text-black placeholder-zinc-400 border-zinc-300 focus:border-red-600'
+                    }`}
+                  />
+                  {loadingSuggestions && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <div className={`w-4 h-4 border-2 border-t-transparent rounded-full animate-spin ${
+                        isDark ? 'border-zinc-500' : 'border-zinc-400'
+                      }`} />
+                    </div>
+                  )}
+                  {showSuggestions && spaceSuggestions.length > 0 && (
+                    <div
+                      ref={suggestionsRef}
+                      className={`absolute left-0 right-0 top-full mt-1 border-2 z-50 max-h-80 overflow-y-auto shadow-lg ${
+                        isDark
+                          ? 'bg-zinc-900 border-zinc-700'
+                          : 'bg-white border-zinc-300'
+                      }`}
+                    >
+                      {spaceSuggestions.map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => handleSpaceSelect(s)}
+                          className={`w-full px-3 py-2.5 flex items-center gap-3 text-left font-mono text-sm transition-colors ${
+                            isDark
+                              ? 'hover:bg-zinc-800 text-white'
+                              : 'hover:bg-zinc-100 text-black'
+                          }`}
+                        >
+                          {s.avatar ? (
+                            <img
+                              src={formatAvatar(s.avatar)}
+                              alt=""
+                              className="w-7 h-7 rounded-full border border-zinc-600 shrink-0 object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div className={`w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-xs font-bold ${
+                              isDark ? 'bg-zinc-700 text-zinc-400' : 'bg-zinc-200 text-zinc-500'
+                            }`}>
+                              {s.name?.charAt(0)?.toUpperCase() || '?'}
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="font-bold text-sm truncate">{s.name}</div>
+                            <div className={`text-xs truncate ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                              {s.id}
+                            </div>
+                          </div>
+                          <div className={`flex items-center gap-1 text-xs shrink-0 ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                            <Users size={11} />
+                            {s.followersCount?.toLocaleString() || 0}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {mode !== 'address' && (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={addressFilter}
+                  onChange={(event) => setAddressFilter(event.target.value)}
+                  placeholder="Filter by user address (optional) — 0x..."
+                  className={`w-full px-4 py-2.5 border-2 outline-none font-mono text-sm transition-all duration-100 ${
+                    isDark
+                      ? 'bg-zinc-950 text-white placeholder-zinc-600 border-zinc-700 focus:border-red-600'
+                      : 'bg-zinc-50 text-black placeholder-zinc-400 border-zinc-300 focus:border-red-600'
+                  }`}
+                />
+              </div>
+            )}
+
             {/* Action buttons */}
             <div className="flex gap-2">
               {mode === 'space' ? (
@@ -548,6 +774,17 @@ function App() {
                   style={{ fontFamily: 'Impact, Arial Black, sans-serif' }}
                 >
                   <ScrambleText externalHover={hoverStates.submit}>{loading ? 'LOADING...' : 'EXPLORE'}</ScrambleText>
+                </button>
+              ) : mode === 'address' ? (
+                <button
+                  type="submit"
+                  disabled={loading || !addressFilter.trim()}
+                  onMouseEnter={() => hover('submit', true)}
+                  onMouseLeave={() => hover('submit', false)}
+                  className="flex-1 px-6 py-3 bg-red-600 text-white border-2 border-red-600 font-mono font-bold uppercase text-sm tracking-wider transition-all duration-100 hover:-translate-y-0.5 hover:shadow-[0_4px_0_0_rgba(185,28,28,1)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
+                  style={{ fontFamily: 'Impact, Arial Black, sans-serif' }}
+                >
+                  <ScrambleText externalHover={hoverStates.submit}>{loading ? 'LOADING...' : 'EXPLORE ADDRESS'}</ScrambleText>
                 </button>
               ) : (
                 <button
@@ -577,6 +814,7 @@ function App() {
                   { type: 'settings', label: 'Settings', color: 'bg-blue-600' },
                   { type: 'delete-proposal', label: 'Deleted', color: 'bg-red-600' },
                   { type: 'update-proposal', label: 'Updated', color: 'bg-amber-600' },
+                  { type: 'vote', label: 'Votes', color: 'bg-violet-600' },
                 ] as const).map(({ type, label, color }) => {
                   const isSelected = selectedTypes.includes(type);
                   return (
@@ -636,10 +874,13 @@ function App() {
         <Timeline
           messages={messages.filter(m => selectedTypes.includes(m.type))}
           loading={loading}
-          space={mode === 'all' ? '' : space}
+          space={mode === 'all' || (mode === 'address' && !space) ? '' : space}
           theme={theme}
-          showSpaceBadge={mode === 'all'}
+          showSpaceBadge={mode === 'all' || (mode === 'address' && !space)}
           hasData={messages.length > 0}
+          onAddressClick={(address) => {
+            applyAddressFilter(address);
+          }}
           onSpaceClick={(spaceId) => {
             setHash(`/s:${spaceId}`);
             setMode('space');

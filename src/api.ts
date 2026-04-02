@@ -4,7 +4,7 @@ import type { SnapshotResponse, ProposalDetail, VoteDetail } from './types';
 const client = new GraphQLClient('https://hub.snapshot.org/graphql');
 
 const MESSAGES_QUERY = gql`
-  query GetMessages($space: String!, $first: Int!, $skip: Int!, $timestamp_lt: Int) {
+  query GetMessages($space: String!, $first: Int!, $skip: Int!, $timestamp_lt: Int, $address: String) {
     messages(
       first: $first
       skip: $skip
@@ -12,6 +12,7 @@ const MESSAGES_QUERY = gql`
         space: $space
         type_in: ["proposal", "settings", "delete-proposal", "update-proposal"]
         timestamp_lt: $timestamp_lt
+        address: $address
       }
       orderBy: "timestamp"
       orderDirection: desc
@@ -21,6 +22,7 @@ const MESSAGES_QUERY = gql`
       type
       ipfs
       timestamp
+      address
     }
   }
 `;
@@ -29,24 +31,27 @@ export const fetchMessages = async (
   space: string,
   first: number = 10,
   skip: number = 0,
-  timestamp_lt?: number
+  timestamp_lt?: number,
+  address?: string
 ): Promise<SnapshotResponse> => {
   return client.request(MESSAGES_QUERY, {
     space,
     first,
     skip,
     timestamp_lt,
+    address,
   });
 };
 
 const ALL_MESSAGES_QUERY = gql`
-  query GetAllMessages($first: Int!, $skip: Int!, $timestamp_lt: Int) {
+  query GetAllMessages($first: Int!, $skip: Int!, $timestamp_lt: Int, $address: String) {
     messages(
       first: $first
       skip: $skip
       where: {
         type_in: ["proposal", "settings", "delete-proposal", "update-proposal"]
         timestamp_lt: $timestamp_lt
+        address: $address
       }
       orderBy: "timestamp"
       orderDirection: desc
@@ -57,6 +62,7 @@ const ALL_MESSAGES_QUERY = gql`
       ipfs
       timestamp
       space
+      address
     }
   }
 `;
@@ -64,12 +70,14 @@ const ALL_MESSAGES_QUERY = gql`
 export const fetchAllMessages = async (
   first: number = 10,
   skip: number = 0,
-  timestamp_lt?: number
+  timestamp_lt?: number,
+  address?: string
 ): Promise<SnapshotResponse> => {
   return client.request(ALL_MESSAGES_QUERY, {
     first,
     skip,
     timestamp_lt,
+    address,
   });
 };
 
@@ -208,8 +216,8 @@ export const fetchProposalVotes = async (
   proposalId: string,
   first: number = 20,
   skip: number = 0,
-  orderBy: string = 'vp',
-  orderDirection: string = 'desc'
+  orderBy: 'vp' | 'created' = 'vp',
+  orderDirection: 'desc' | 'asc' = 'desc'
 ): Promise<{ votes: VoteDetail[] }> => {
   const VOTES_QUERY = gql`
     query GetVotes($proposalId: String!, $first: Int!, $skip: Int!, $orderBy: String!, $orderDirection: OrderDirection!) {
@@ -239,6 +247,56 @@ export const fetchProposalVotes = async (
     skip,
     orderBy,
     orderDirection,
+  });
+};
+
+export const fetchVotesByAddress = async (
+  address: string,
+  first: number = 20,
+  skip: number = 0,
+  created_lt?: number,
+  space?: string
+): Promise<{ votes: VoteDetail[] }> => {
+  const ADDRESS_VOTES_QUERY = gql`
+    query GetVotesByAddress($address: String!, $first: Int!, $skip: Int!, $created_lt: Int, $space: String) {
+      votes(
+        first: $first
+        skip: $skip
+        where: {
+          voter: $address
+          created_lt: $created_lt
+          space: $space
+        }
+        orderBy: "created"
+        orderDirection: desc
+      ) {
+        id
+        ipfs
+        voter
+        created
+        choice
+        reason
+        app
+        vp
+        vp_state
+        proposal {
+          id
+          title
+          space {
+            id
+            name
+          }
+        }
+      }
+    }
+  `;
+
+  return client.request(ADDRESS_VOTES_QUERY, {
+    address,
+    first,
+    skip,
+    created_lt,
+    space,
   });
 };
 

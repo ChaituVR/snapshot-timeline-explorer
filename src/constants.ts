@@ -22,4 +22,4 @@ export const DIFF_EDITOR_OPTIONS = {
   renderSideBySide: true,
 } as const;
 
-export const EVENT_TYPES = ['proposal', 'settings', 'delete-proposal', 'update-proposal'] as const;
+export const EVENT_TYPES = ['proposal', 'settings', 'delete-proposal', 'update-proposal', 'vote'] as const;

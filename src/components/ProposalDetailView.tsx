@@ -81,15 +81,27 @@ export const ProposalDetailView: React.FC<ProposalDetailViewProps> = ({ proposal
       try {
         setLoading(true);
         setError(null);
-        const [detailRes, votesRes] = await Promise.all([
-          fetchProposalDetail(proposalId),
-          fetchProposalVotes(proposalId, 20, 0),
-        ]);
+
+        const detailRes = await fetchProposalDetail(proposalId);
+
+        if (!detailRes?.proposal) {
+          throw new Error('Proposal not found');
+        }
+
         setProposal(detailRes.proposal);
-        setVotes(votesRes.votes);
-        if (votesRes.votes.length < 20) setHasMoreVotes(false);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load proposal');
+
+        try {
+          const votesRes = await fetchProposalVotes(proposalId, 20, 0);
+          setVotes(votesRes.votes);
+          if (votesRes.votes.length < 20) {
+            setHasMoreVotes(false);
+          }
+        } catch {
+          setVotes([]);
+          setHasMoreVotes(false);
+        }
+      } catch (error) {
+        setError(error instanceof Error ? error.message : 'Failed to load proposal');
       } finally {
         setLoading(false);
       }
@@ -310,7 +322,7 @@ export const ProposalDetailView: React.FC<ProposalDetailViewProps> = ({ proposal
                       <span className="font-mono text-xs text-zinc-500">
                         {score.toLocaleString(undefined, { maximumFractionDigits: 0 })} {proposal.symbol || 'VP'}
                       </span>
-                      <span className={`font-mono text-xs font-bold min-w-[3rem] text-right ${isWinning ? 'text-white' : 'text-zinc-400'}`}>
+                      <span className={`font-mono text-xs font-bold min-w-12 text-right ${isWinning ? 'text-white' : 'text-zinc-400'}`}>
                         {pct.toFixed(1)}%
                       </span>
                     </div>
@@ -340,7 +352,7 @@ export const ProposalDetailView: React.FC<ProposalDetailViewProps> = ({ proposal
             {showBody ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           </button>
           {showBody && (
-            <div className="mt-3 p-4 bg-zinc-800/50 border border-zinc-700/50 font-mono text-sm text-zinc-300 leading-relaxed max-h-80 overflow-y-auto whitespace-pre-wrap break-words">
+            <div className="mt-3 p-4 bg-zinc-800/50 border border-zinc-700/50 font-mono text-sm text-zinc-300 leading-relaxed max-h-80 overflow-y-auto whitespace-pre-wrap wrap-break-word">
               {proposal.body}
             </div>
           )}

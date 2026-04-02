@@ -61,6 +61,16 @@ const TYPE_CONFIG = {
     textDark: 'text-amber-400',
     textLight: 'text-amber-700',
   },
+  vote: {
+    icon: Vote,
+    label: 'Vote Cast',
+    dotClass: 'bg-violet-500',
+    borderClass: 'border-l-violet-500',
+    bgDark: 'bg-violet-500/10',
+    bgLight: 'bg-violet-50',
+    textDark: 'text-violet-400',
+    textLight: 'text-violet-700',
+  },
 };
 
 interface MonthGroup {
@@ -78,11 +88,12 @@ interface TimelineProps {
   theme: 'light' | 'dark';
   showSpaceBadge?: boolean;
   onSpaceClick?: (spaceId: string) => void;
+  onAddressClick?: (address: string) => void;
   hasData?: boolean; // true when raw (unfiltered) messages exist
 }
 
 export const Timeline: React.FC<TimelineProps> = ({
-  messages, loading, space, theme, showSpaceBadge = false, onSpaceClick, hasData = false,
+  messages, loading, space, theme, showSpaceBadge = false, onSpaceClick, onAddressClick, hasData = false,
 }) => {
   const [selectedIPFS, setSelectedIPFS] = useState<string | null>(null);
   const [selectedSettingsDiff, setSelectedSettingsDiff] = useState<SnapshotMessage | null>(null);
@@ -126,6 +137,9 @@ export const Timeline: React.FC<TimelineProps> = ({
     if (message.type === 'proposal' && s) {
       return `https://snapshot.box/#/s:${s.toLowerCase()}/proposal/${message.id}`;
     }
+    if (message.type === 'vote' && s && message.proposalId) {
+      return `https://snapshot.box/#/s:${s.toLowerCase()}/proposal/${message.proposalId}`;
+    }
     return null;
   };
 
@@ -139,12 +153,20 @@ export const Timeline: React.FC<TimelineProps> = ({
     }
   };
 
-  const canOpenDetail = (type: string) => type === 'proposal' || type === 'update-proposal';
+  const canOpenDetail = (type: string) => type === 'proposal' || type === 'update-proposal' || type === 'vote';
+
+  const truncateAddress = (address: string) =>
+    address.length > 12 ? `${address.slice(0, 6)}...${address.slice(-4)}` : address;
 
   const handleProposalClick = (message: SnapshotMessage) => {
     const s = message.space || space;
     if (s) {
-      setSelectedProposalDetail({ id: message.id, space: s });
+      const proposalId = message.type === 'vote' ? message.proposalId : message.id;
+      if (!proposalId) {
+        return;
+      }
+
+      setSelectedProposalDetail({ id: proposalId, space: s });
     }
   };
 
@@ -269,6 +291,19 @@ export const Timeline: React.FC<TimelineProps> = ({
                           >
                             <ScrambleText externalHover={hoverStates[`label-${message.id}`]}>{config.label}</ScrambleText>
                           </span>
+                          {message.address && (
+                            <button
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                onAddressClick?.(message.address!);
+                              }}
+                              className={`font-mono text-[11px] px-2 py-0.5 border cursor-pointer transition-all duration-100 hover:-translate-y-0.5 ${
+                                isDark ? 'border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-white' : 'border-zinc-300 text-zinc-500 hover:border-zinc-400 hover:text-black'
+                              }`}
+                            >
+                              By {truncateAddress(message.address)}
+                            </button>
+                          )}
                           {showSpaceBadge && message.space && (
                             <button
                               onClick={(e) => {
@@ -281,6 +316,11 @@ export const Timeline: React.FC<TimelineProps> = ({
                             >
                               {message.space}
                             </button>
+                          )}
+                          {message.type === 'vote' && message.proposalTitle && (
+                            <span className={`font-mono text-[11px] truncate max-w-xs ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                              {message.proposalTitle}
+                            </span>
                           )}
                           {proposalUrl && (
                             <a
@@ -305,30 +345,34 @@ export const Timeline: React.FC<TimelineProps> = ({
 
                       {/* Actions row */}
                       <div className="flex flex-wrap items-center gap-2 text-xs" onClick={(e) => e.stopPropagation()}>
-                        <a
-                          href={`${IPFS_GATEWAY}/${message.ipfs}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onMouseEnter={() => hover(`ipfs-${message.id}`, true)}
-                          onMouseLeave={() => hover(`ipfs-${message.id}`, false)}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 font-mono font-bold uppercase bg-red-600 text-white transition-all duration-100 hover:-translate-y-0.5"
-                        >
-                          <ExternalLink size={11} />
-                          <ScrambleText externalHover={hoverStates[`ipfs-${message.id}`]}>IPFS</ScrambleText>
-                        </a>
-                        <button
-                          onClick={() => setSelectedIPFS(message.ipfs)}
-                          onMouseEnter={() => hover(`view-${message.id}`, true)}
-                          onMouseLeave={() => hover(`view-${message.id}`, false)}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 font-mono font-bold uppercase border-2 transition-all duration-100 hover:-translate-y-0.5 ${
-                            isDark
-                              ? 'border-zinc-700 text-zinc-300 hover:border-zinc-500 hover:text-white'
-                              : 'border-zinc-300 text-zinc-600 hover:border-zinc-400 hover:text-black'
-                          }`}
-                        >
-                          <Eye size={11} />
-                          <ScrambleText externalHover={hoverStates[`view-${message.id}`]}>View</ScrambleText>
-                        </button>
+                        {message.ipfs && (
+                          <>
+                            <a
+                              href={`${IPFS_GATEWAY}/${message.ipfs}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onMouseEnter={() => hover(`ipfs-${message.id}`, true)}
+                              onMouseLeave={() => hover(`ipfs-${message.id}`, false)}
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 font-mono font-bold uppercase bg-red-600 text-white transition-all duration-100 hover:-translate-y-0.5"
+                            >
+                              <ExternalLink size={11} />
+                              <ScrambleText externalHover={hoverStates[`ipfs-${message.id}`]}>IPFS</ScrambleText>
+                            </a>
+                            <button
+                              onClick={() => setSelectedIPFS(message.ipfs)}
+                              onMouseEnter={() => hover(`view-${message.id}`, true)}
+                              onMouseLeave={() => hover(`view-${message.id}`, false)}
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 font-mono font-bold uppercase border-2 transition-all duration-100 hover:-translate-y-0.5 ${
+                                isDark
+                                  ? 'border-zinc-700 text-zinc-300 hover:border-zinc-500 hover:text-white'
+                                  : 'border-zinc-300 text-zinc-600 hover:border-zinc-400 hover:text-black'
+                              }`}
+                            >
+                              <Eye size={11} />
+                              <ScrambleText externalHover={hoverStates[`view-${message.id}`]}>View</ScrambleText>
+                            </button>
+                          </>
+                        )}
                         {hasDiff(message.type) && (
                           <button
                             onClick={() => handleDiffClick(message)}
@@ -348,20 +392,30 @@ export const Timeline: React.FC<TimelineProps> = ({
                         {/* Spacer */}
                         <div className="flex-1" />
 
+                        {message.type === 'vote' && (
+                          <span className={`font-mono text-[10px] uppercase ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
+                            VP:{(message.voteVp || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                          </span>
+                        )}
+
                         {/* Metadata */}
-                        <span className={`font-mono text-[10px] uppercase ${isDark ? 'text-zinc-600' : 'text-zinc-400'}`}>
-                          MCI:{message.mci}
-                        </span>
-                        <CopyButton
-                          text={message.ipfs}
-                          variant="minimal"
-                          className={`font-mono text-[10px] font-bold uppercase transition-colors ${
-                            isDark ? 'text-zinc-600 hover:text-red-500' : 'text-zinc-400 hover:text-red-600'
-                          }`}
-                          size={10}
-                        >
-                          IPFS
-                        </CopyButton>
+                        {message.type !== 'vote' && (
+                          <span className={`font-mono text-[10px] uppercase ${isDark ? 'text-zinc-600' : 'text-zinc-400'}`}>
+                            MCI:{message.mci}
+                          </span>
+                        )}
+                        {message.ipfs && (
+                          <CopyButton
+                            text={message.ipfs}
+                            variant="minimal"
+                            className={`font-mono text-[10px] font-bold uppercase transition-colors ${
+                              isDark ? 'text-zinc-600 hover:text-red-500' : 'text-zinc-400 hover:text-red-600'
+                            }`}
+                            size={10}
+                          >
+                            IPFS
+                          </CopyButton>
+                        )}
                         <CopyButton
                           text={message.id}
                           variant="minimal"
