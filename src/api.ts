@@ -10,7 +10,6 @@ const MESSAGES_QUERY = gql`
       skip: $skip
       where: {
         space: $space
-        type_in: ["proposal", "settings", "delete-proposal", "update-proposal"]
         timestamp_lt: $timestamp_lt
         address: $address
       }
@@ -49,7 +48,6 @@ const ALL_MESSAGES_QUERY = gql`
       first: $first
       skip: $skip
       where: {
-        type_in: ["proposal", "settings", "delete-proposal", "update-proposal"]
         timestamp_lt: $timestamp_lt
         address: $address
       }

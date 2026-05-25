@@ -229,7 +229,9 @@ function App() {
           voteVp: vote.vp,
         }));
 
-        newEvents = [...messagesResponse.messages, ...voteEvents];
+        // voteEvents first so enriched data (proposal title, choice) wins dedup
+        // over the same vote returned by the messages query
+        newEvents = [...voteEvents, ...messagesResponse.messages];
       } else {
         // Space or All mode
         const response = mode === 'all'
@@ -260,7 +262,7 @@ function App() {
             voteVp: vote.vp,
           }));
 
-          newEvents = [...newEvents, ...voteEvents];
+          newEvents = [...voteEvents, ...newEvents];
         }
       }
 
@@ -815,6 +817,16 @@ function App() {
                   { type: 'delete-proposal', label: 'Deleted', color: 'bg-red-600' },
                   { type: 'update-proposal', label: 'Updated', color: 'bg-amber-600' },
                   { type: 'vote', label: 'Votes', color: 'bg-violet-600' },
+                  { type: 'follow', label: 'Follows', color: 'bg-sky-600' },
+                  { type: 'unfollow', label: 'Unfollows', color: 'bg-zinc-600' },
+                  { type: 'subscribe', label: 'Subscribes', color: 'bg-indigo-600' },
+                  { type: 'unsubscribe', label: 'Unsubscribes', color: 'bg-stone-600' },
+                  { type: 'alias', label: 'Alias', color: 'bg-fuchsia-600' },
+                  { type: 'revoke-alias', label: 'Revoke Alias', color: 'bg-pink-600' },
+                  { type: 'profile', label: 'Profile', color: 'bg-teal-600' },
+                  { type: 'statement', label: 'Statement', color: 'bg-cyan-600' },
+                  { type: 'flag-proposal', label: 'Flagged', color: 'bg-orange-600' },
+                  { type: 'delete-space', label: 'Space Deleted', color: 'bg-rose-700' },
                 ] as const).map(({ type, label, color }) => {
                   const isSelected = selectedTypes.includes(type);
                   return (

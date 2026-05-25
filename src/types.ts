@@ -1,7 +1,24 @@
+export type SnapshotMessageType =
+  | 'proposal'
+  | 'settings'
+  | 'delete-proposal'
+  | 'update-proposal'
+  | 'vote'
+  | 'follow'
+  | 'unfollow'
+  | 'subscribe'
+  | 'unsubscribe'
+  | 'alias'
+  | 'revoke-alias'
+  | 'profile'
+  | 'statement'
+  | 'flag-proposal'
+  | 'delete-space';
+
 export interface SnapshotMessage {
   id: string;
   mci: number;
-  type: 'proposal' | 'settings' | 'delete-proposal' | 'update-proposal' | 'vote';
+  type: SnapshotMessageType;
   ipfs: string;
   timestamp: number;
   space?: string;

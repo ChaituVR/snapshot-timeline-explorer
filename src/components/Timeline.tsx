@@ -9,8 +9,18 @@ import {
   Eye,
   Loader2,
   Search,
+  UserPlus,
+  UserMinus,
+  Bell,
+  BellOff,
+  Link2,
+  Link2Off,
+  User,
+  MessageSquare,
+  Flag,
+  XCircle,
 } from 'lucide-react';
-import type { SnapshotMessage } from '../types';
+import type { SnapshotMessage, SnapshotMessageType } from '../types';
 import { IPFS_GATEWAY } from '../constants';
 import { Modal } from './Modal';
 import { IPFSContent } from './IPFSContent';
@@ -20,7 +30,18 @@ import { ProposalDetailView } from './ProposalDetailView';
 import { CopyButton } from './CopyButton';
 import { ScrambleText } from './ScrambleText';
 
-const TYPE_CONFIG = {
+type TypeConfig = {
+  icon: typeof Vote;
+  label: string;
+  dotClass: string;
+  borderClass: string;
+  bgDark: string;
+  bgLight: string;
+  textDark: string;
+  textLight: string;
+};
+
+const TYPE_CONFIG: Record<SnapshotMessageType, TypeConfig> = {
   proposal: {
     icon: Vote,
     label: 'New Proposal',
@@ -71,6 +92,117 @@ const TYPE_CONFIG = {
     textDark: 'text-violet-400',
     textLight: 'text-violet-700',
   },
+  follow: {
+    icon: UserPlus,
+    label: 'Space Followed',
+    dotClass: 'bg-sky-500',
+    borderClass: 'border-l-sky-500',
+    bgDark: 'bg-sky-500/10',
+    bgLight: 'bg-sky-50',
+    textDark: 'text-sky-400',
+    textLight: 'text-sky-700',
+  },
+  unfollow: {
+    icon: UserMinus,
+    label: 'Space Unfollowed',
+    dotClass: 'bg-zinc-500',
+    borderClass: 'border-l-zinc-500',
+    bgDark: 'bg-zinc-500/10',
+    bgLight: 'bg-zinc-100',
+    textDark: 'text-zinc-400',
+    textLight: 'text-zinc-700',
+  },
+  subscribe: {
+    icon: Bell,
+    label: 'Subscribed',
+    dotClass: 'bg-indigo-500',
+    borderClass: 'border-l-indigo-500',
+    bgDark: 'bg-indigo-500/10',
+    bgLight: 'bg-indigo-50',
+    textDark: 'text-indigo-400',
+    textLight: 'text-indigo-700',
+  },
+  unsubscribe: {
+    icon: BellOff,
+    label: 'Unsubscribed',
+    dotClass: 'bg-stone-500',
+    borderClass: 'border-l-stone-500',
+    bgDark: 'bg-stone-500/10',
+    bgLight: 'bg-stone-100',
+    textDark: 'text-stone-400',
+    textLight: 'text-stone-700',
+  },
+  alias: {
+    icon: Link2,
+    label: 'Alias Added',
+    dotClass: 'bg-fuchsia-500',
+    borderClass: 'border-l-fuchsia-500',
+    bgDark: 'bg-fuchsia-500/10',
+    bgLight: 'bg-fuchsia-50',
+    textDark: 'text-fuchsia-400',
+    textLight: 'text-fuchsia-700',
+  },
+  'revoke-alias': {
+    icon: Link2Off,
+    label: 'Alias Revoked',
+    dotClass: 'bg-pink-500',
+    borderClass: 'border-l-pink-500',
+    bgDark: 'bg-pink-500/10',
+    bgLight: 'bg-pink-50',
+    textDark: 'text-pink-400',
+    textLight: 'text-pink-700',
+  },
+  profile: {
+    icon: User,
+    label: 'Profile Updated',
+    dotClass: 'bg-teal-500',
+    borderClass: 'border-l-teal-500',
+    bgDark: 'bg-teal-500/10',
+    bgLight: 'bg-teal-50',
+    textDark: 'text-teal-400',
+    textLight: 'text-teal-700',
+  },
+  statement: {
+    icon: MessageSquare,
+    label: 'Statement Posted',
+    dotClass: 'bg-cyan-500',
+    borderClass: 'border-l-cyan-500',
+    bgDark: 'bg-cyan-500/10',
+    bgLight: 'bg-cyan-50',
+    textDark: 'text-cyan-400',
+    textLight: 'text-cyan-700',
+  },
+  'flag-proposal': {
+    icon: Flag,
+    label: 'Proposal Flagged',
+    dotClass: 'bg-orange-500',
+    borderClass: 'border-l-orange-500',
+    bgDark: 'bg-orange-500/10',
+    bgLight: 'bg-orange-50',
+    textDark: 'text-orange-400',
+    textLight: 'text-orange-700',
+  },
+  'delete-space': {
+    icon: XCircle,
+    label: 'Space Deleted',
+    dotClass: 'bg-rose-600',
+    borderClass: 'border-l-rose-600',
+    bgDark: 'bg-rose-600/10',
+    bgLight: 'bg-rose-50',
+    textDark: 'text-rose-400',
+    textLight: 'text-rose-700',
+  },
+};
+
+const UNKNOWN_TYPE_CONFIG: TypeConfig = {
+  icon: Vote,
+  label: 'Event',
+  dotClass: 'bg-zinc-500',
+  borderClass: 'border-l-zinc-500',
+  bgDark: 'bg-zinc-500/10',
+  bgLight: 'bg-zinc-100',
+  textDark: 'text-zinc-400',
+  textLight: 'text-zinc-700',
 };
 
 interface MonthGroup {
@@ -257,7 +389,7 @@ export const Timeline: React.FC<TimelineProps> = ({
             {/* Events */}
             <div className="space-y-3 pb-2">
               {group.messages.map((message) => {
-                const config = TYPE_CONFIG[message.type];
+                const config = TYPE_CONFIG[message.type] ?? UNKNOWN_TYPE_CONFIG;
                 const Icon = config.icon;
                 const proposalUrl = getProposalUrl(message);
                 const clickable = canOpenDetail(message.type);
