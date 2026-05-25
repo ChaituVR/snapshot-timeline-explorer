@@ -4,7 +4,7 @@ import type { SnapshotResponse, ProposalDetail, VoteDetail } from './types';
 const client = new GraphQLClient('https://hub.snapshot.org/graphql');
 
 const MESSAGES_QUERY = gql`
-  query GetMessages($space: String!, $first: Int!, $skip: Int!, $timestamp_lt: Int, $address: String) {
+  query GetMessages($space: String!, $first: Int!, $skip: Int!, $timestamp_lt: Int, $address: String, $type_in: [String]) {
     messages(
       first: $first
       skip: $skip
@@ -12,6 +12,7 @@ const MESSAGES_QUERY = gql`
         space: $space
         timestamp_lt: $timestamp_lt
         address: $address
+        type_in: $type_in
       }
       orderBy: "timestamp"
       orderDirection: desc
@@ -31,7 +32,8 @@ export const fetchMessages = async (
   first: number = 10,
   skip: number = 0,
   timestamp_lt?: number,
-  address?: string
+  address?: string,
+  type_in?: string[]
 ): Promise<SnapshotResponse> => {
   return client.request(MESSAGES_QUERY, {
     space,
@@ -39,17 +41,19 @@ export const fetchMessages = async (
     skip,
     timestamp_lt,
     address,
+    type_in,
   });
 };
 
 const ALL_MESSAGES_QUERY = gql`
-  query GetAllMessages($first: Int!, $skip: Int!, $timestamp_lt: Int, $address: String) {
+  query GetAllMessages($first: Int!, $skip: Int!, $timestamp_lt: Int, $address: String, $type_in: [String]) {
     messages(
       first: $first
       skip: $skip
       where: {
         timestamp_lt: $timestamp_lt
         address: $address
+        type_in: $type_in
       }
       orderBy: "timestamp"
       orderDirection: desc
@@ -69,13 +73,15 @@ export const fetchAllMessages = async (
   first: number = 10,
   skip: number = 0,
   timestamp_lt?: number,
-  address?: string
+  address?: string,
+  type_in?: string[]
 ): Promise<SnapshotResponse> => {
   return client.request(ALL_MESSAGES_QUERY, {
     first,
     skip,
     timestamp_lt,
     address,
+    type_in,
   });
 };
 
@@ -299,6 +305,32 @@ export const fetchVotesByAddress = async (
 };
 
 // Fetch all update-proposal messages for a given proposal ID to build revision history
+const VERIFIED_SPACES_QUERY = gql`
+  query GetVerifiedSpaces($first: Int!, $skip: Int!) {
+    spaces(first: $first, skip: $skip, where: { verified: true }) {
+      id
+    }
+  }
+`;
+
+export const fetchVerifiedSpaceIds = async (): Promise<string[]> => {
+  const ids: string[] = [];
+  const pageSize = 1000;
+  let skip = 0;
+  // hub caps `first` at 1000; loop until a short page returns
+   
+  while (true) {
+    const res = await client.request<{ spaces: { id: string }[] }>(
+      VERIFIED_SPACES_QUERY,
+      { first: pageSize, skip }
+    );
+    ids.push(...res.spaces.map(s => s.id));
+    if (res.spaces.length < pageSize) break;
+    skip += pageSize;
+  }
+  return ids;
+};
+
 export const fetchProposalHistory = async (
   space: string,
   proposalId: string

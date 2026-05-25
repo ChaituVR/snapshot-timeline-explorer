@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Calendar, Moon, Sun, Globe, Zap, Users, Link, Check } from 'lucide-react';
+import { Calendar, Moon, Sun, Globe, Zap, Users, Link, Check, ShieldCheck } from 'lucide-react';
 import { DayPicker } from 'react-day-picker';
 import { Timeline } from './components/Timeline';
 import { ScrambleText } from './components/ScrambleText';
-import { fetchMessages, fetchAllMessages, searchSpaces, fetchVotesByAddress } from './api';
+import { fetchMessages, fetchAllMessages, searchSpaces, fetchVotesByAddress, fetchVerifiedSpaceIds } from './api';
 import { EVENT_TYPES } from './constants';
 import type { SnapshotMessage, SpaceResult } from './types';
 import 'react-day-picker/style.css';
@@ -56,6 +56,9 @@ function App() {
   const [shareCopied, setShareCopied] = useState(false);
   const [pendingAutoLoad, setPendingAutoLoad] = useState(false);
   const [addressFilter, setAddressFilter] = useState('');
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [verifiedSpaceIds, setVerifiedSpaceIds] = useState<Set<string> | null>(null);
+  const [verifiedLoading, setVerifiedLoading] = useState(false);
 
   const observerTarget = useRef<HTMLDivElement>(null);
   const lastTimestamp = useRef<number | undefined>(undefined);
@@ -200,17 +203,25 @@ function App() {
       const activeAddress = (addressOverride ?? addressFilter).trim() || undefined;
       const pageSize = 10;
 
+      // Server-side type filter: includes "vote" only when explicitly selected.
+      // Votes still arrive enriched via the votes query for address mode; the messages
+      // query supplements them when the user has the Votes pill active.
+      const messageTypes = selectedTypes.length > 0 ? selectedTypes : undefined;
+
       let newEvents: SnapshotMessage[] = [];
 
       if (mode === 'address') {
         // Address mode: fetch votes (always) + messages for this address
         const spaceFilter = space.trim() || undefined;
+        const wantVotes = selectedTypes.includes('vote');
 
         const [votesResponse, messagesResponse] = await Promise.all([
-          fetchVotesByAddress(activeAddress!, 25, 0, timestampCursor, spaceFilter),
+          wantVotes
+            ? fetchVotesByAddress(activeAddress!, 25, 0, timestampCursor, spaceFilter)
+            : Promise.resolve({ votes: [] }),
           spaceFilter
-            ? fetchMessages(spaceFilter, 25, 0, timestampCursor, activeAddress)
-            : fetchAllMessages(25, 0, timestampCursor, activeAddress),
+            ? fetchMessages(spaceFilter, 25, 0, timestampCursor, activeAddress, messageTypes)
+            : fetchAllMessages(25, 0, timestampCursor, activeAddress, messageTypes),
         ]);
 
         if (requestId !== requestIdRef.current) return;
@@ -235,14 +246,14 @@ function App() {
       } else {
         // Space or All mode
         const response = mode === 'all'
-          ? await fetchAllMessages(25, 0, timestampCursor, activeAddress)
-          : await fetchMessages(space, 25, 0, timestampCursor, activeAddress);
+          ? await fetchAllMessages(25, 0, timestampCursor, activeAddress, messageTypes)
+          : await fetchMessages(space, 25, 0, timestampCursor, activeAddress, messageTypes);
 
         if (requestId !== requestIdRef.current) return;
 
         newEvents = response.messages;
 
-        if (activeAddress) {
+        if (activeAddress && selectedTypes.includes('vote')) {
           const spaceFilter = mode === 'space' ? space : undefined;
           const votesResponse = await fetchVotesByAddress(activeAddress, 25, 0, timestampCursor, spaceFilter);
 
@@ -291,7 +302,7 @@ function App() {
         setLoading(false);
       }
     }
-  }, [space, selectedDate, mode, addressFilter]);
+  }, [space, selectedDate, mode, addressFilter, selectedTypes]);
 
   // Auto-load after URL-driven state init
   useEffect(() => {
@@ -299,6 +310,24 @@ function App() {
     setPendingAutoLoad(false);
     loadMessages(true);
   }, [pendingAutoLoad, loadMessages]);
+
+  const resetAndReload = useCallback(() => {
+    if (!hasSearched) return;
+    setMessages([]);
+    setHasMore(true);
+    lastTimestamp.current = undefined;
+    setPendingAutoLoad(true);
+  }, [hasSearched]);
+
+  // Fetch the verified-space ID set once when the toggle is first turned on.
+  useEffect(() => {
+    if (!verifiedOnly || verifiedSpaceIds || verifiedLoading) return;
+    setVerifiedLoading(true);
+    fetchVerifiedSpaceIds()
+      .then(ids => setVerifiedSpaceIds(new Set(ids)))
+      .catch(() => setVerifiedSpaceIds(new Set()))
+      .finally(() => setVerifiedLoading(false));
+  }, [verifiedOnly, verifiedSpaceIds, verifiedLoading]);
 
   useEffect(() => {
     if (!hasSearched) return;
@@ -811,6 +840,29 @@ function App() {
                 Filter by type
               </div>
               <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onMouseEnter={() => hover('filter-verified', true)}
+                  onMouseLeave={() => hover('filter-verified', false)}
+                  onClick={() => {
+                    setVerifiedOnly(prev => !prev);
+                    resetAndReload();
+                  }}
+                  disabled={verifiedLoading}
+                  title={verifiedLoading ? 'Loading verified spaces…' : 'Show only events from verified spaces'}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 font-mono font-bold uppercase text-[11px] border-2 transition-all duration-100 hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-wait disabled:hover:translate-y-0 ${
+                    verifiedOnly
+                      ? 'bg-red-600 border-transparent text-white'
+                      : isDark
+                        ? 'bg-transparent border-zinc-700 text-zinc-500 hover:border-zinc-500 hover:text-zinc-300'
+                        : 'bg-transparent border-zinc-300 text-zinc-400 hover:border-zinc-400 hover:text-zinc-600'
+                  }`}
+                >
+                  <ShieldCheck size={11} />
+                  <ScrambleText externalHover={hoverStates['filter-verified']}>
+                    {verifiedLoading ? 'Loading…' : 'Verified only'}
+                  </ScrambleText>
+                </button>
                 {([
                   { type: 'proposal', label: 'Proposals', color: 'bg-emerald-600' },
                   { type: 'settings', label: 'Settings', color: 'bg-blue-600' },
@@ -839,6 +891,7 @@ function App() {
                         setSelectedTypes(prev =>
                           isSelected ? prev.filter(t => t !== type) : [...prev, type]
                         );
+                        resetAndReload();
                       }}
                       className={`px-3 py-1.5 font-mono font-bold uppercase text-[11px] border-2 transition-all duration-100 hover:-translate-y-0.5 ${
                         isSelected
@@ -860,6 +913,7 @@ function App() {
                     setSelectedTypes(prev =>
                       prev.length === EVENT_TYPES.length ? [] : [...EVENT_TYPES]
                     );
+                    resetAndReload();
                   }}
                   className={`px-3 py-1.5 font-mono text-[11px] uppercase border-2 border-dashed transition-all duration-100 hover:-translate-y-0.5 ${
                     isDark
@@ -884,7 +938,14 @@ function App() {
 
         {/* Timeline */}
         <Timeline
-          messages={messages.filter(m => selectedTypes.includes(m.type))}
+          messages={messages.filter(m => {
+            if (!selectedTypes.includes(m.type)) return false;
+            // Verified-only filter: only excludes events that have a space and
+            // whose space is not verified. User-only events (alias, profile,
+            // revoke-alias) have no space and pass through.
+            if (verifiedOnly && verifiedSpaceIds && m.space && !verifiedSpaceIds.has(m.space)) return false;
+            return true;
+          })}
           loading={loading}
           space={mode === 'all' || (mode === 'address' && !space) ? '' : space}
           theme={theme}
